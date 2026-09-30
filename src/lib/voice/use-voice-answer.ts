@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { MicError, listen, micSupported, type Session } from "./recorder";
 import { transcribeSpeech } from "./transcribe.functions";
 import { scoreSpeech, voiceXp, type VoiceScore } from "./score";
+import { stopSpeaking } from "@/lib/speech";
 
 export type VoicePhase = "idle" | "listening" | "checking" | "result" | "error";
 
@@ -69,6 +70,9 @@ export function useVoiceAnswer({ expected, locale, onResult, onTranscript }: Opt
 
     void (async () => {
       try {
+        stopSpeaking();
+        // Give the speakers time to settle before opening the microphone.
+        await new Promise((resolve) => setTimeout(resolve, 140));
         const s = await listen((l) => alive.current && setLevel(l));
         session.current = s;
         setPhase("listening");

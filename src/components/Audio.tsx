@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Volume2 } from "lucide-react";
+import { LoaderCircle, Volume2 } from "lucide-react";
 import { speak, stopSpeaking, ttsSupported } from "@/lib/speech";
 import { useApp } from "@/lib/store";
+import { Button } from "@/components/ui/button";
 
 export function useSpeaker(locale: string) {
   const rate = useApp((s) => s.settings.rate);
@@ -37,12 +38,14 @@ export function PlayButton({
 
   const play = useCallback(async () => {
     setPlaying(true);
-    await say(text, rate);
-    if (alive.current) setPlaying(false);
+    try {
+      await say(text, rate);
+    } finally {
+      if (alive.current) setPlaying(false);
+    }
   }, [say, text, rate]);
 
-  // Auto-play once per text. If the browser blocks it (no user gesture yet),
-  // fall back to playing on the first interaction anywhere on the page.
+  // Auto-play once per prompt; streamed playback remains the only audio source.
   const autoPlayed = useRef<string | null>(null);
   useEffect(() => {
     if (!autoPlay || !ttsSupported()) return;
@@ -54,31 +57,25 @@ export function PlayButton({
       if (!cancelled) void play();
     }, 250);
 
-    const onGesture = () => {
-      if (!window.speechSynthesis.speaking && !window.speechSynthesis.pending) void play();
-      window.removeEventListener("pointerdown", onGesture);
-    };
-    window.addEventListener("pointerdown", onGesture, { once: true });
-
     return () => {
       cancelled = true;
       clearTimeout(timer);
-      window.removeEventListener("pointerdown", onGesture);
+      stopSpeaking();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text, autoPlay]);
 
   return (
-    <button
+    <Button
       type="button"
-      onClick={play}
-      className={`flex w-full items-center justify-center gap-2 rounded-sm border border-secondary/60 px-4 py-3 text-secondary transition-colors ${
-        playing ? "mic-live bg-secondary/10" : "bg-secondary/5 active:bg-secondary/15"
-      }`}
+      variant="outline"
+      onClick={() => void play()}
+      disabled={playing}
+      className="h-12 w-full rounded-lg border-secondary/60 bg-secondary/5 text-secondary active:bg-secondary/15"
     >
-      <Volume2 className="h-4 w-4" />
-      <span className="hud text-[10px]">{playing ? "TRANSMITTING…" : label}</span>
-    </button>
+      {playing ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Volume2 className="h-4 w-4" />}
+      <span className="hud text-[10px]">{playing ? "SPEAKING…" : label}</span>
+    </Button>
   );
 }
 

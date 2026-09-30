@@ -1,124 +1,22 @@
-/** Browser TTS / STT helpers. All calls are feature-detected and safe on the server. */
+import { createParser } from "eventsource-parser";
 
-export function ttsSupported() {
-  return typeof window !== "undefined" && "speechSynthesis" in window;
-}
-
-let voicesCache: SpeechSynthesisVoice[] = [];
-
-/** Voices load asynchronously in Chrome/Safari; wait (briefly) for them. */
-function voicesReady(): Promise<SpeechSynthesisVoice[]> {
-  return new Promise((resolve) => {
-    if (!ttsSupported()) return resolve([]);
-    const load = () => window.speechSynthesis.getVoices();
-    voicesCache = load();
-    if (voicesCache.length > 0) return resolve(voicesCache);
-
-    let settled = false;
-    const done = () => {
-      if (settled) return;
-      settled = true;
-      voicesCache = load();
-      window.speechSynthesis.onvoiceschanged = null;
-      resolve(voicesCache);
-    };
-    window.speechSynthesis.onvoiceschanged = done;
-    // Poll as a fallback: some browsers never fire onvoiceschanged.
-    let tries = 0;
-    const iv = setInterval(() => {
-      tries += 1;
-      if (load().length > 0 || tries > 20) {
-        clearInterval(iv);
-        done();
-      }
-    }, 100);
-  });
-}
-
-/** Prefer natural/neural voices — the handler should never sound robotic. */
-const QUALITY = [
-  "natural",
-  "neural",
-  "premium",
-  "enhanced",
-  "google",
-  "siri",
-  "microsoft",
-];
-
-const MALE_VOICE_NAMES = [
-  "aaron",
-  "alvaro",
-  "carlos",
-  "daniel",
-  "david",
-  "diego",
-  "eddy",
-  "guy",
-  "jorge",
-  "mark",
-  "pablo",
-  "paul",
-  "raul",
-  "reed",
-  "rocko",
-  "thomas",
-];
-
-const FEMALE_VOICE_NAMES = [
-  "ava",
-  "carmen",
-  "elena",
-  "flo",
-  "helena",
-  "jenny",
-  "laura",
-  "maria",
-  "monica",
-  "paulina",
-  "samantha",
-  "shelley",
-  "sofia",
-  "susan",
-];
-
-function score(v: SpeechSynthesisVoice, preferredGender?: "male" | "female") {
-  const n = v.name.toLowerCase();
-  let s = 0;
-  QUALITY.forEach((q, i) => {
-    if (n.includes(q)) s += (QUALITY.length - i) * 10;
-  });
-  if (!v.localService) s += 5; // cloud voices are usually the good ones
-  if (n.includes("compact") || n.includes("espeak")) s -= 30;
-  if (preferredGender === "male") {
-    if (MALE_VOICE_NAMES.some((name) => n.includes(name))) s += 100;
-    if (FEMALE_VOICE_NAMES.some((name) => n.includes(name))) s -= 100;
-  }
-  if (preferredGender === "female") {
-    if (FEMALE_VOICE_NAMES.some((name) => n.includes(name))) s += 100;
-    if (MALE_VOICE_NAMES.some((name) => n.includes(name))) s -= 100;
-  }
-  return s;
-}
-
-function pickVoice(locale: string, preferredGender?: "male" | "female") {
-  if (!ttsSupported()) return undefined;
-  if (voicesCache.length === 0) voicesCache = window.speechSynthesis.getVoices();
-  const base = locale.split("-")[0] ?? locale;
-  const exact = voicesCache.filter((v) => v.lang.replace("_", "-") === locale);
-  const loose = voicesCache.filter((v) => v.lang.replace("_", "-").startsWith(base));
-  const pool = exact.length > 0 ? exact : loose;
-  return [...pool].sort((a, b) => score(b, preferredGender) - score(a, preferredGender))[0];
-}
-
-/* ---------------------------------------------------------------- *
- * Speaking bus — lets the handler avatar animate while the system   *
- * is talking (mouth/gesture animation + live caption).              *
- * ---------------------------------------------------------------- */
+export type SpeechMood =
+  | "warm"
+  | "encouraging"
+  | "playful"
+  | "corrective"
+  | "celebratory"
+  | "empathetic"
+  | "dramatic";
 
 type SpeakingState = { speaking: boolean; text: string; locale: string };
 let speakingState: SpeakingState = { speaking: false, text: "", locale: "" };
 const listeners = new Set<() => void>();
+
+let activeController: AbortController | null = null;
+let activeContext: AudioContext | null = null;
+let activeSources = new Set<AudioBufferSourceNode>();
+let generation = 0;
 
 export function subscribeSpeaking(fn: () => void) {
   listeners.add(fn);
@@ -131,216 +29,158 @@ export function getSpeakingState() {
 
 function setSpeaking(next: SpeakingState) {
   speakingState = next;
-  listeners.forEach((l) => l());
+  listeners.forEach((listener) => listener());
 }
 
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-/* ---------------------------------------------------------------- *
- * Neural voices. Device voice lists rarely contain a real male       *
- * Spanish voice, so tutors with a gender preference are spoken by    *
- * the server TTS voice instead, with the browser engine as fallback. *
- * ---------------------------------------------------------------- */
-
-const NEURAL_VOICE = { male: "ash", female: "shimmer" } as const;
-const audioCache = new Map<string, string>();
-let currentAudio: HTMLAudioElement | null = null;
-let neuralBroken = false;
-let unlocked = false;
-
-/**
- * Mobile browsers only allow audio that starts from a user gesture. Play a
- * silent clip on the very first tap so later playback is allowed.
- */
-export function unlockAudio() {
-  if (unlocked || typeof window === "undefined") return;
-  unlocked = true;
-  try {
-    const a = new Audio(
-      "data:audio/mpeg;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcQCA",
-    );
-    a.volume = 0;
-    void a.play().catch(() => {});
-  } catch {
-    /* noop */
-  }
-  try {
-    if (ttsSupported()) window.speechSynthesis.resume();
-  } catch {
-    /* noop */
-  }
+export function ttsSupported() {
+  return typeof window !== "undefined" && "AudioContext" in window;
 }
 
-if (typeof window !== "undefined") {
-  const on = () => unlockAudio();
-  window.addEventListener("pointerdown", on, { once: true, capture: true });
-  window.addEventListener("touchstart", on, { once: true, capture: true });
-  window.addEventListener("keydown", on, { once: true, capture: true });
+function inferMood(text: string): SpeechMood {
+  if (/!{1,}|perfect|excellent|amazing|bravo|bien hecho|increíble/i.test(text)) return "celebratory";
+  if (/sorry|it's okay|take your time|no pasa nada|tranquil/i.test(text)) return "empathetic";
+  if (/try again|remember|careful|almost|otra vez|recuerda/i.test(text)) return "corrective";
+  if (/\?|imagine|what if|qué tal/i.test(text)) return "playful";
+  return "warm";
 }
 
-async function speakNeural(
-  text: string,
-  locale: string,
-  rate: number,
-  gender: "male" | "female",
-): Promise<boolean> {
-  if (neuralBroken || typeof window === "undefined") return false;
-  const voice = NEURAL_VOICE[gender];
-  const key = `${voice}|${rate}|${locale}|${text}`;
-  try {
-    let url = audioCache.get(key);
-    if (!url) {
-      const res = await fetch("/api/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text,
-          voice,
-          speed: rate,
-          instructions:
-            gender === "male"
-              ? "Young man in his early twenties, relaxed and friendly, natural conversational pace."
-              : "Warm, friendly young woman, natural conversational pace.",
-        }),
-      });
-      if (!res.ok) {
-        if (res.status === 503 || res.status === 404) neuralBroken = true;
-        return false;
-      }
-      const blob = await res.blob();
-      if (blob.size < 512) return false;
-      url = URL.createObjectURL(blob);
-      if (audioCache.size > 60) {
-        const oldest = audioCache.keys().next().value;
-        if (oldest) {
-          URL.revokeObjectURL(audioCache.get(oldest)!);
-          audioCache.delete(oldest);
-        }
-      }
-      audioCache.set(key, url);
+function decodePCM(pending: Uint8Array, incoming: Uint8Array) {
+  const bytes = new Uint8Array(pending.length + incoming.length);
+  bytes.set(pending);
+  bytes.set(incoming, pending.length);
+  const usable = bytes.length - (bytes.length % 2);
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const samples = new Float32Array(usable / 2);
+  for (let i = 0; i < samples.length; i += 1) samples[i] = view.getInt16(i * 2, true) / 32768;
+  return { samples, pending: bytes.slice(usable) };
+}
+
+function clearPlayback() {
+  activeController?.abort();
+  activeController = null;
+  for (const source of activeSources) {
+    try {
+      source.stop();
+    } catch {
+      // The source may already have ended.
     }
-
-    stopSpeaking();
-    setSpeaking({ speaking: true, text, locale });
-    const audio = new Audio(url);
-    currentAudio = audio;
-    await new Promise<void>((resolve) => {
-      let settled = false;
-      const done = () => {
-        if (settled) return;
-        settled = true;
-        resolve();
-      };
-      audio.onended = done;
-      audio.onerror = done;
-      audio.play().catch(done);
-    });
-    currentAudio = null;
-    return true;
-  } catch {
-    return false;
   }
+  activeSources.clear();
+  if (activeContext) void activeContext.close().catch(() => undefined);
+  activeContext = null;
+}
+
+export function stopSpeaking() {
+  generation += 1;
+  clearPlayback();
+  setSpeaking({ speaking: false, text: "", locale: "" });
+}
+
+export function unlockAudio() {
+  // Streaming begins only from explicit learner actions; no silent audio hack is needed.
 }
 
 export async function speak(
   text: string,
   locale: string,
   rate = 1,
-  preferredGender?: "male" | "female",
+  preferredGender: "male" | "female" = "female",
+  mood: SpeechMood = inferMood(text),
 ): Promise<void> {
-  if (!text) return;
-  // Always try the neural voice first: device speech engines are missing or
-  // silently blocked on a lot of mobile browsers.
-  {
-    const ok = await speakNeural(text, locale, rate, preferredGender ?? "female");
-    setSpeaking({ speaking: false, text: "", locale: "" });
-    if (ok) return;
-  }
-  if (!ttsSupported()) return;
-  const synth = window.speechSynthesis;
+  if (!text.trim() || !ttsSupported()) return;
+
+  stopSpeaking();
+  const run = generation;
+  const controller = new AbortController();
+  activeController = controller;
+  const context = new AudioContext({ sampleRate: 24000 });
+  activeContext = context;
+  setSpeaking({ speaking: true, text, locale });
+
+  let pending = new Uint8Array(0);
+  let completed = false;
+  let samplesPlayed = 0;
+  let playhead = 0;
+  let finalPlayback: Promise<void> = Promise.resolve();
 
   try {
-    await voicesReady();
-    setSpeaking({ speaking: true, text, locale });
+    if (context.state === "suspended") await context.resume();
+    const response = await fetch("/api/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, locale, rate, voice: preferredGender, mood }),
+      signal: controller.signal,
+    });
+    if (!response.ok || !response.body) {
+      const body = (await response.json().catch(() => null)) as { message?: string } | null;
+      throw new Error(body?.message ?? `Speech failed (${response.status}).`);
+    }
 
-
-    // Clear any queued/stuck utterance, then give the engine a beat.
-    // Speaking immediately after cancel() is silently dropped in Chrome.
-    synth.cancel();
-    if (synth.paused) synth.resume();
-    await wait(120);
-
-    await new Promise<void>((resolve) => {
-      let settled = false;
-      const finish = () => {
-        if (settled) return;
-        settled = true;
-        clearInterval(watchdog);
-        resolve();
-      };
-
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = locale;
-      u.rate = rate;
-      const v = pickVoice(locale, preferredGender);
-      if (v) u.voice = v;
-      u.onend = finish;
-      u.onerror = finish;
-
-      let started = false;
-      u.onstart = () => {
-        started = true;
-      };
-
-      // Watchdog: if the engine never starts (Chrome queue bug) retry once;
-      // if it stalls mid-utterance, bail out instead of hanging forever.
-      let ticks = 0;
-      let retried = false;
-      const watchdog = setInterval(() => {
-        ticks += 1;
-        if (!started && !synth.speaking && !synth.pending) {
-          if (!retried && ticks >= 5) {
-            retried = true;
-            try {
-              synth.resume();
-              synth.speak(u);
-            } catch {
-              finish();
-            }
-          } else if (retried && ticks >= 20) {
-            finish();
-          }
+    const parser = createParser({
+      onEvent(event) {
+        const payload = JSON.parse(event.data) as { type?: string; audio?: string; error?: unknown };
+        if (payload.type === "error" || payload.error) throw new Error("The tutor voice could not finish speaking.");
+        if (payload.type === "speech.audio.done") {
+          completed = true;
           return;
         }
-        if (started && !synth.speaking && !synth.pending) finish();
-        if (ticks > 300) finish();
-      }, 100);
+        if (payload.type !== "speech.audio.delta" || !payload.audio || completed) return;
 
-      try {
-        synth.speak(u);
-      } catch {
-        finish();
-      }
+        const decoded = decodePCM(
+          pending,
+          Uint8Array.from(atob(payload.audio), (character) => character.charCodeAt(0)),
+        );
+        pending = decoded.pending;
+        if (!decoded.samples.length) return;
+        samplesPlayed += decoded.samples.length;
+
+        const buffer = context.createBuffer(1, decoded.samples.length, 24000);
+        buffer.copyToChannel(decoded.samples, 0);
+        const source = context.createBufferSource();
+        source.buffer = buffer;
+        const compressor = context.createDynamicsCompressor();
+        compressor.threshold.value = -18;
+        compressor.knee.value = 12;
+        compressor.ratio.value = 3;
+        compressor.attack.value = 0.01;
+        compressor.release.value = 0.18;
+        source.connect(compressor);
+        compressor.connect(context.destination);
+        activeSources.add(source);
+        finalPlayback = new Promise<void>((resolve) => {
+          source.onended = () => {
+            activeSources.delete(source);
+            resolve();
+          };
+        });
+        playhead = Math.max(playhead, context.currentTime + 0.06);
+        source.start(playhead);
+        playhead += buffer.duration;
+      },
     });
-  } catch {
-    /* noop */
-  } finally {
-    setSpeaking({ speaking: false, text: "", locale: "" });
-  }
-}
 
-export function stopSpeaking() {
-  if (currentAudio) {
+    const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
     try {
-      currentAudio.pause();
-      currentAudio.currentTime = 0;
-    } catch {
-      /* noop */
+      while (true) {
+        const next = await reader.read();
+        if (next.done) break;
+        parser.feed(next.value);
+      }
+      parser.reset({ consume: true });
+    } finally {
+      reader.releaseLock();
     }
-    currentAudio = null;
+
+    if (!completed || !samplesPlayed || pending.length) throw new Error("The tutor voice stream ended early.");
+    await finalPlayback;
+  } catch (error) {
+    if (!controller.signal.aborted) throw error;
+  } finally {
+    if (run === generation) {
+      clearPlayback();
+      setSpeaking({ speaking: false, text: "", locale: "" });
+    }
   }
-  if (ttsSupported()) window.speechSynthesis.cancel();
-  setSpeaking({ speaking: false, text: "", locale: "" });
 }
 
 export function normalize(s: string) {
@@ -353,10 +193,6 @@ export function normalize(s: string) {
     .trim();
 }
 
-/**
- * Rubric-based evaluation of a spoken/typed reply (spec 7.3): did they attempt
- * the target language, did they hit the core pattern, does it answer the prompt.
- */
 export function evaluateResponse(
   transcript: string,
   expected: string[],
@@ -365,16 +201,13 @@ export function evaluateResponse(
   const said = normalize(transcript);
   const attempted = said.length > 1;
   const pattern = normalize(corePattern.replace(/uses?|'/g, ""));
-  const patternWords = pattern.split(" ").filter((w) => w.length > 1);
-  const hitPattern =
-    patternWords.length > 0 && patternWords.every((w) => said.includes(w));
-
+  const patternWords = pattern.split(" ").filter((word) => word.length > 1);
+  const hitPattern = patternWords.length > 0 && patternWords.every((word) => said.includes(word));
   let overlap = 0;
-  for (const e of expected) {
-    const words = normalize(e.replace(/\[.*?\]/g, "")).split(" ").filter((w) => w.length > 2);
-    if (words.length === 0) continue;
-    const hits = words.filter((w) => said.includes(w)).length / words.length;
-    overlap = Math.max(overlap, hits);
+  for (const answer of expected) {
+    const words = normalize(answer.replace(/\[.*?\]/g, "")).split(" ").filter((word) => word.length > 2);
+    if (!words.length) continue;
+    overlap = Math.max(overlap, words.filter((word) => said.includes(word)).length / words.length);
   }
   return { pass: attempted && (hitPattern || overlap >= 0.6), hitPattern, attempted };
 }
