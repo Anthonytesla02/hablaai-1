@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Preserve Hablaa as a speech-first TanStack Start app; all tutor playback must use the single Gemini PCM streaming service, because browser speech fallbacks and parallel audio sources caused echo and inconsistent quality.
+- Keep learner recording separate from playback: stop and cancel all tutor speech before opening the microphone, because device speakers can otherwise feed tutor audio into transcription.
