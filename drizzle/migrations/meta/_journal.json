@@ -22,6 +22,13 @@
       "when": 1790867551869,
       "tag": "0002_add_admin_feedback_access",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790869224969,
+      "tag": "0003_tighten_feed_and_chat_read",
+      "breakpoints": true
     }
   ]
 }
