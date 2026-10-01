@@ -1,3 +1,4 @@
+import { FeedbackButton } from "@/components/FeedbackButton";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -83,11 +84,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         name: "viewport",
         content: "width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1",
       },
-      { title: "Habla — Speech-First Language Training" },
+      { title: "Habla — Speak a New Language in 21 Days" },
       {
         name: "description",
         content:
-          "FSI/DLI-inspired immersive language training: pattern drills, shadowing, spoken field interrogations and spaced recall.",
+          "Speech-first language learning with an expressive AI tutor. Go from complete beginner to speaking your own sentences in about 21 days.",
       },
       { name: "theme-color", content: "#FFF7EE" },
       { name: "color-scheme", content: "light" },
