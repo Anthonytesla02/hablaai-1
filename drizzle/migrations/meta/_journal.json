@@ -15,6 +15,13 @@
       "when": 1790866320047,
       "tag": "0001_community_chat_and_feedback",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790867551869,
+      "tag": "0002_add_admin_feedback_access",
+      "breakpoints": true
     }
   ]
 }
