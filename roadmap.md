@@ -5,3 +5,6 @@
 - [x] Replace the old dual audio stack with expressive streamed speech
 - [x] Prevent playback overlap and microphone feedback
 - [x] Verify signed-out and signed-in learning flows on phone and desktop
+- [x] Crisp vocabulary pronunciation (no stretching)
+- [x] OneSignal push reminders
+- [x] French 28-day course
