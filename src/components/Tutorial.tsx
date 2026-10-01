@@ -114,13 +114,13 @@ export function Tutorial() {
       )}
 
       <div
-        className="pointer-events-auto absolute left-1/2 w-[min(22rem,calc(100vw-2rem))] -translate-x-1/2 rounded-2xl border-2 border-primary bg-card p-4 shadow-xl"
+        className="pointer-events-auto absolute inset-x-4 mx-auto max-w-[22rem] rounded-2xl border-2 border-primary bg-card p-4 shadow-xl"
         style={
           rect
             ? below
               ? { top: Math.min(rect.top + rect.height + 20, window.innerHeight - 200) }
               : { bottom: Math.min(window.innerHeight - rect.top + 20, window.innerHeight - 180) }
-            : { top: "50%", transform: "translate(-50%, -50%)" }
+            : { top: "50%", transform: "translateY(-50%)" }
         }
       >
         <p className="flex items-center gap-1.5 text-[11px] font-extrabold text-secondary">
