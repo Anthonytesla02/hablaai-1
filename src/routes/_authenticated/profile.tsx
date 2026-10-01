@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   Archive,
   Bell,
+  ChevronDown,
   ChevronRight,
 
   Dumbbell,
@@ -150,7 +151,9 @@ function ProfilePage() {
         </div>
       </section>
 
-      <AccountSection />
+      <Fold title="Account & preferences" subtitle="Name, email, daily goal and focus">
+        <AccountSection />
+      </Fold>
 
       <Link
         to="/companion"
@@ -181,21 +184,18 @@ function ProfilePage() {
       </Link>
 
       {memory.length > 0 && (
-        <section className="mt-4 rounded-2xl border-2 border-primary/30 bg-primary/5 p-3">
-          <p className="text-[11px] font-extrabold text-primary">
-            What {character ? character.name : "your tutor"} remembers
-          </p>
-          <ul className="mt-2 space-y-1.5">
+        <Fold
+          title={`What ${character ? character.name : "your tutor"} remembers`}
+          subtitle={`${memory.length} note${memory.length === 1 ? "" : "s"} — they come back until they stick`}
+        >
+          <ul className="space-y-1.5">
             {memory.map((m) => (
               <li key={m} className="text-[11px] text-muted-foreground">
                 • {m}
               </li>
             ))}
           </ul>
-          <p className="mt-2 text-[10px] text-muted-foreground">
-            These keep coming back in your practice until they stick.
-          </p>
-        </section>
+        </Fold>
       )}
 
       <section className="mt-6">
@@ -223,9 +223,11 @@ function ProfilePage() {
       </section>
 
 
-      <section className="mt-6">
-        <p className="text-[11px] font-extrabold text-muted-foreground">Settings</p>
-        <div className="mt-2 space-y-4 rounded-2xl border-2 border-border bg-card p-3">
+      <Fold
+        title="Settings"
+        subtitle={`Voice speed ${settings.rate.toFixed(2)}× · captions ${settings.captions ? "on" : "off"}`}
+      >
+        <div className="space-y-4">
           <label className="block">
             <span className="text-[12px] font-extrabold">
               Voice speed · {settings.rate.toFixed(2)}×
@@ -266,13 +268,10 @@ function ProfilePage() {
           />
           <PushRow />
         </div>
-      </section>
+      </Fold>
 
-      <section className="mt-6">
-        <p className="text-[11px] font-extrabold text-muted-foreground">
-          Badges · {badges.length}/{allBadges.length}
-        </p>
-        <ul className="mt-2 grid grid-cols-2 gap-2">
+      <Fold title="Badges" subtitle={`${badges.length} of ${allBadges.length} earned`}>
+        <ul className="grid grid-cols-2 gap-2">
           {allBadges.map((b) => {
             const earned = badges.includes(b.id);
             return (
@@ -290,11 +289,10 @@ function ProfilePage() {
             );
           })}
         </ul>
-      </section>
+      </Fold>
 
-      <section className="mt-6">
-        <p className="text-[11px] font-extrabold text-muted-foreground">Recent sessions</p>
-        <ul className="mt-2 space-y-1.5">
+      <Fold title="Recent sessions" subtitle={history.length > 0 ? `${history.length} saved` : "Nothing yet"}>
+        <ul className="space-y-1.5">
           {history.map((h, i) => (
             <li
               key={i}
@@ -311,7 +309,7 @@ function ProfilePage() {
             <li className="text-xs text-muted-foreground">No sessions yet — go say hello!</li>
           )}
         </ul>
-      </section>
+      </Fold>
 
       <button
         onClick={async () => {
