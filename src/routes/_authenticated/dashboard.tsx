@@ -6,8 +6,7 @@ import { arcTitle, langById, missionDays, onboarding } from "@/lib/content";
 import {
   challengeForDay,
   courseKey,
-  courseWeeks,
-  courseLessons,
+  courseFor,
   hasCourse,
   isCheckpointLesson,
   passThreshold,
@@ -26,7 +25,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
       {
         name: "description",
         content:
-          "A winding checkpoint map of the 28-day Spanish Foundations course: run today's lesson, or tap a cleared checkpoint to drill its vocabulary in the vault.",
+          "A winding checkpoint map of the 28-day Foundations course: run today's lesson, or tap a cleared checkpoint to drill its vocabulary in the vault.",
       },
       { property: "og:title", content: "Your Learning Map — Habla" },
       {
@@ -99,10 +98,11 @@ function DashboardPage() {
   const lang = langById(profile.langId);
   const tier = onboarding.daily_commitment_tiers.find((t) => t.id === profile.tierId);
   const courseOn = hasCourse(profile.langId);
+  const course = courseFor(profile.langId);
   const due = dueCards(cards, profile.langId, 999).length;
 
   const nodes: Node[] = courseOn
-    ? courseLessons.map((l) => ({
+    ? course.lessons.map((l) => ({
         key: courseKey(l.id),
         title: l.title,
         dayNumber: l.day,
@@ -120,10 +120,10 @@ function DashboardPage() {
   const nextIdx = nodes.findIndex((n) => !completedDays.includes(n.key));
   const activeIdx = nextIdx === -1 ? nodes.length - 1 : nextIdx;
   const activeNode = nodes[activeIdx];
-  const activeLesson = courseOn ? courseLessons[activeIdx] : undefined;
+  const activeLesson = courseOn ? course.lessons[activeIdx] : undefined;
   const legacyActive = courseOn ? undefined : missionDays(profile.langId)[activeIdx];
-  const challenge = activeLesson ? challengeForDay(activeLesson.day) : undefined;
-  const specials = courseOn && activeLesson ? unlockedSpecials(activeLesson.day) : [];
+  const challenge = activeLesson ? challengeForDay(activeLesson.day, profile.langId) : undefined;
+  const specials = courseOn && activeLesson ? unlockedSpecials(activeLesson.day, profile.langId) : [];
   const challengeDone = challenge ? challengesDone.includes(challenge.id) : false;
   const gate = activeLesson ? passThreshold(activeLesson.id) : 0;
   const isCheckpoint = activeLesson ? isCheckpointLesson(activeLesson.id) : false;
@@ -131,7 +131,7 @@ function DashboardPage() {
 
   // Weeks whose lessons are all cleared unlock a recall simulation.
   const recallWeeks = courseOn
-    ? courseWeeks.filter((w) => w.lessons.every((l) => completedDays.includes(courseKey(l.id))))
+    ? course.weeks.filter((w) => w.lessons.every((l) => completedDays.includes(courseKey(l.id))))
     : [];
 
   // Duolingo-style winding path: horizontal offsets cycle left → centre → right.
@@ -326,7 +326,7 @@ function DashboardPage() {
 
       <section className="mt-7">
         <p className="hud text-[10px] text-muted-foreground">
-          {courseOn ? "Spanish foundations — 28 day map" : "Your map"}
+          {courseOn ? `${course.label} foundations — 28 day map` : "Your map"}
         </p>
 
         <div className="relative mt-4">

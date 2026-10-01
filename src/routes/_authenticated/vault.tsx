@@ -5,7 +5,7 @@ import { AppFrame, Hydrated } from "@/components/AppFrame";
 import { PlayButton } from "@/components/Audio";
 import { Glossed } from "@/components/Glossed";
 import { arcTitle, bcp47, missionDays } from "@/lib/content";
-import { courseKey, courseLessons, hasCourse } from "@/lib/course";
+import { courseFor, courseKey } from "@/lib/course";
 
 import { Completion } from "@/components/Completion";
 import { handlerReact, handlerSay } from "@/lib/handler-bus";
@@ -79,7 +79,7 @@ function VaultPage() {
       });
     }
 
-    for (const lesson of hasCourse(profile.langId) ? courseLessons : []) {
+    for (const lesson of courseFor(profile.langId).lessons) {
       const deckCards = lesson.vocabulary
         .map((v) => byId.get(`${lesson.id}:${v.id}`))
         .filter((c): c is SrsCard => Boolean(c));

@@ -16,7 +16,7 @@ import { Completion } from "@/components/Completion";
 import { ShareCard } from "@/components/ShareCard";
 import { useCompanion } from "@/lib/use-companion";
 import { sfx } from "@/lib/sfx";
-import { courseLessons } from "@/lib/course";
+import { courseFor } from "@/lib/course";
 import { stopSpeaking } from "@/lib/speech";
 import { useApp } from "@/lib/store";
 import { dueCards } from "@/lib/srs";
@@ -175,7 +175,7 @@ function SessionPage() {
       setCelebrate(false);
       setHandoff(true);
       const done = useApp.getState().completedDays;
-      const next = courseLessons.find((l) => !done.includes(courseKey(l.id)));
+      const next = courseFor(useApp.getState().profile?.langId ?? "spanish").lessons.find((l) => !done.includes(courseKey(l.id)));
       const go = setTimeout(() => {
         sfx("transition");
         if (!passed) {
