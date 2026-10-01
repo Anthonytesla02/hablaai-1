@@ -5,6 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import llamaAvatar from "@/assets/habla-llama.png";
 import { Button } from "@/components/ui/button";
 import { charactersFor } from "@/lib/companions";
+import { hasCourse } from "@/lib/course";
 import {
   authoredLanguages,
   languages,
@@ -196,7 +197,7 @@ function OnboardingPage() {
             {step === 2 && (
               <div className="space-y-3">
                 {languages.map((language) => {
-                  const available = authoredLanguages.includes(language.id);
+                  const available = authoredLanguages.includes(language.id) || hasCourse(language.id);
                   return <ChoiceButton key={language.id} value={language.id} selected={langId === language.id} disabled={!available} onSelect={(value) => select(setLangId, value)} icon={language.flag_emoji} label={language.label} note={available ? "Ready to learn" : "Coming soon"} />;
                 })}
               </div>

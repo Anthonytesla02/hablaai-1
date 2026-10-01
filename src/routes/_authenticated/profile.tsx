@@ -150,6 +150,8 @@ function ProfilePage() {
         </div>
       </section>
 
+      <AccountSection />
+
       <Link
         to="/companion"
         onClick={() => sfx("tap")}
@@ -412,6 +414,7 @@ const PUSH_COPY: Record<string, string> = {
   denied: "Notifications are blocked — allow them in your browser's site settings.",
   "not-configured": "Notifications aren't set up yet.",
   unsupported: "This browser doesn't support notifications.",
+  "needs-web-setup": "Notifications need one more setup step in OneSignal for this website address.",
 };
 
 function PushRow() {
@@ -450,5 +453,96 @@ function PushRow() {
         }
       }}
     />
+  );
+}
+
+function AccountSection() {
+  const profile = useApp((s) => s.profile);
+  const setProfile = useApp((s) => s.setProfile);
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState(profile?.callsign ?? "");
+  const [newEmail, setNewEmail] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    void supabase.auth.getUser().then(({ data }) => {
+      setEmail(data.user?.email ?? "");
+      setNewEmail(data.user?.email ?? "");
+    });
+  }, []);
+  if (!profile) return null;
+
+  const tiers = onboarding.daily_commitment_tiers as { id: string; label: string; minutes: number }[];
+  const personas = onboarding.operational_personas as { id: string; label: string }[];
+  const field = "h-11 w-full rounded-xl border-2 border-input bg-card px-3 text-sm font-bold outline-none focus:border-primary";
+  const update = (patch: Partial<typeof profile>) => setProfile({ ...profile, ...patch });
+
+  async function save() {
+    sfx("tap");
+    const trimmed = name.trim().slice(0, 24);
+    if (!trimmed) {
+      toast.error("Your name can't be empty");
+      return;
+    }
+    setSaving(true);
+    try {
+      if (trimmed !== profile!.callsign) update({ callsign: trimmed });
+      const nextEmail = newEmail.trim();
+      if (nextEmail && nextEmail !== email) {
+        const { error } = await supabase.auth.updateUser({ email: nextEmail });
+        if (error) throw error;
+        toast.success("Check both inboxes to confirm your new email");
+      } else {
+        toast.success("Account saved");
+      }
+    } catch (e) {
+      toast.error((e as Error).message || "Could not save");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="mt-4 rounded-2xl border-2 border-border bg-card p-4">
+      <p className="text-[11px] font-extrabold text-muted-foreground">Account</p>
+      <div className="mt-3 space-y-3">
+        <label className="block">
+          <span className="text-[11px] font-extrabold">Name</span>
+          <input value={name} maxLength={24} onChange={(e) => setName(e.target.value)} className={field} />
+        </label>
+        <label className="block">
+          <span className="text-[11px] font-extrabold">Email</span>
+          <input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} className={field} />
+        </label>
+        <button
+          type="button"
+          onClick={() => void save()}
+          disabled={saving}
+          className="w-full rounded-2xl bg-primary py-2.5 text-[11px] font-extrabold text-primary-foreground disabled:opacity-60"
+        >
+          {saving ? "Saving…" : "Save account"}
+        </button>
+      </div>
+
+      <p className="mt-5 text-[11px] font-extrabold text-muted-foreground">Preferences</p>
+      <div className="mt-3 space-y-3">
+        <label className="block">
+          <span className="text-[11px] font-extrabold">Daily goal</span>
+          <select value={profile.tierId} onChange={(e) => { update({ tierId: e.target.value }); toast.success("Daily goal updated"); }} className={field}>
+            {tiers.map((t) => (
+              <option key={t.id} value={t.id}>{t.minutes} minutes a day</option>
+            ))}
+          </select>
+        </label>
+        <label className="block">
+          <span className="text-[11px] font-extrabold">Learning for</span>
+          <select value={profile.personaId} onChange={(e) => { update({ personaId: e.target.value }); toast.success("Focus updated"); }} className={field}>
+            {personas.map((p) => (
+              <option key={p.id} value={p.id}>{p.label}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+    </section>
   );
 }

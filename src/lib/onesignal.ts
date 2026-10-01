@@ -32,13 +32,20 @@ export function loadOneSignal(appId: string): Promise<OS> {
   return ready;
 }
 
-export type PushResult = "on" | "off" | "denied" | "open-in-new-tab" | "not-configured" | "unsupported";
+export type PushResult = "needs-web-setup" | "on" | "off" | "denied" | "open-in-new-tab" | "not-configured" | "unsupported";
 
 export async function enablePush(appId: string | null, userId: string): Promise<PushResult> {
   if (!appId) return "not-configured";
   if (!("Notification" in window) || !("serviceWorker" in navigator)) return "unsupported";
   if (window.top !== window.self) return "open-in-new-tab";
-  const os = await loadOneSignal(appId);
+  let os: OS;
+  try {
+    os = await loadOneSignal(appId);
+  } catch (e) {
+    ready = null;
+    if (/web push|not configured|origin/i.test(String((e as Error)?.message ?? e))) return "needs-web-setup";
+    throw e;
+  }
   await os.login(userId);
   await os.Notifications.requestPermission();
   if (!os.Notifications.permission) return "denied";

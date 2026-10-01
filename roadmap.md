@@ -8,3 +8,8 @@
 - [x] Crisp vocabulary pronunciation (no stretching)
 - [x] OneSignal push reminders
 - [x] French 28-day course
+- [ ] Profile account details (name, email, preferences) editable
+- [ ] Fix streak logic
+- [ ] Walkthrough first pop-up overflow on phones
+- [ ] Practice reminders "not configured for web push"
+- [ ] Two languages from attached files (files missing)

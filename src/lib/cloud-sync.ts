@@ -84,9 +84,16 @@ export async function syncFromCloud(userId: string): Promise<void> {
       xp: keepMax("xp", profileRow.xp),
       weeklyXp: keepMax("weeklyXp", profileRow.weekly_xp),
       credits: keepMax("credits", profileRow.credits),
-      streak: keepMax("streak", profileRow.streak),
+      // Streak follows whichever side practised most recently, so a broken streak can reset.
+      streak:
+        (profileRow.last_active_day ?? "") >= (store.lastActiveDay ?? "")
+          ? profileRow.streak
+          : store.streak,
       longestStreak: keepMax("longestStreak", profileRow.longest_streak),
-      lastActiveDay: profileRow.last_active_day ?? store.lastActiveDay,
+      lastActiveDay:
+        (profileRow.last_active_day ?? "") >= (store.lastActiveDay ?? "")
+          ? profileRow.last_active_day
+          : store.lastActiveDay,
       lastLoginDay: profileRow.last_login_day,
       freezes: profileRow.freezes,
       badges: profileRow.badges,
@@ -108,6 +115,7 @@ export async function syncFromCloud(userId: string): Promise<void> {
       perfectWeek: profileRow.perfect_week,
       settings: profileRow.settings as { rate: number; captions: boolean },
     });
+    useApp.getState().refreshStreak();
   }
 
   // Mark that cloud sync is active
