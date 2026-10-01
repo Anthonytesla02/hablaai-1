@@ -18,17 +18,17 @@ import shotTalk from "@/assets/shot-talk.jpg";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Habla — Learn a Language by Actually Talking" },
+      { title: "Habla — From Beginner to Real Sentences in 21 Days" },
       {
         name: "description",
         content:
-          "Speak Spanish from day one. Habla gives you a tutor with a real personality, live roleplay in cafés and pharmacies, and instant pronunciation feedback.",
+          "Learners go from complete beginner to forming their own sentences in about 21 days. Speak Spanish, French, German or Russian with an expressive AI tutor.",
       },
-      { property: "og:title", content: "Habla — Learn a Language by Actually Talking" },
+      { property: "og:title", content: "Habla — From Beginner to Real Sentences in 21 Days" },
       {
         property: "og:description",
         content:
-          "A speech-first language app: daily lessons, real-life roleplay and instant pronunciation feedback.",
+          "Talk out loud with a tutor who sounds human. Daily 10-minute lessons, live roleplay and a community of learners — real sentences in three weeks.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -61,14 +61,14 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { n: "1", t: "Pick your tutor", d: "Sofía, Lucía, Valentina or Camila — each teaches in their own accent and style." },
+  { n: "1", t: "Pick your tutor", d: "Choose your language and a tutor — each speaks with their own accent, emotion and style." },
   { n: "2", t: "Say your first word", d: "A guided walkthrough takes you through your very first recording." },
   { n: "3", t: "Use it the same day", d: "Every lesson ends in a live roleplay where you apply exactly what you just learned." },
 ];
 
 const FAQ = [
   {
-    q: "Do I need to know any Spanish?",
+    q: "Do I need to know any of the language?",
     a: "No. Day one starts at hello, with the audio, translation and grammar note one tap away on every word.",
   },
   {
@@ -113,14 +113,14 @@ function LandingPage() {
         {/* Hero */}
         <section className="pb-2 pt-8 text-center">
           <p className="pop-in inline-flex items-center gap-1.5 rounded-full bg-secondary/20 px-3 py-1 text-[11px] font-extrabold text-secondary">
-            <Sparkles className="h-3.5 w-3.5" /> Speech-first Spanish
+            <Sparkles className="h-3.5 w-3.5" /> Spanish · French · German · Russian
           </p>
           <h1 className="mt-4 text-[2rem] font-extrabold leading-[1.1] text-foreground">
             Learn a language by <span className="text-primary">actually talking</span>.
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-            Habla gives you a tutor with a real personality, daily lessons you finish in minutes,
-            and live roleplay where you order the coffee yourself.
+            Our learners go from zero to building their own sentences, unaided, in about 21 days —
+            with a tutor who sounds human, 10-minute daily lessons and live roleplay.
           </p>
           <div className="mt-6 space-y-2">
             <Link
@@ -158,8 +158,8 @@ function LandingPage() {
         <Reveal className="mt-10">
           <ul className="grid grid-cols-3 gap-2 text-center">
             {[
-              { k: "4", v: "native tutors" },
-              { k: "28", v: "guided days" },
+              { k: "21", v: "days to real sentences" },
+              { k: "4", v: "languages" },
               { k: "10 min", v: "a day is enough" },
             ].map((s) => (
               <li key={s.v} className="card-soft px-2 py-3">
@@ -168,6 +168,19 @@ function LandingPage() {
               </li>
             ))}
           </ul>
+        </Reveal>
+
+        {/* Results */}
+        <Reveal className="mt-10">
+          <section className="paper-card p-5">
+            <p className="text-[11px] font-extrabold uppercase tracking-wide text-secondary">Real results</p>
+            <blockquote className="mt-2 text-sm font-bold leading-relaxed">
+              “After 21 days I went from a complete beginner to putting simple sentences together with no help at all.”
+            </blockquote>
+            <p className="mt-2 text-xs text-muted-foreground">
+              — Habla's founder, Day 21. Early learners report the same.
+            </p>
+          </section>
         </Reveal>
 
         {/* Features */}
@@ -253,6 +266,7 @@ function LandingPage() {
                 "Tap any word for translation, grammar and audio",
                 "Spaced review that targets your own mistakes",
                 "Streaks, check-ins, leagues and weekly recall",
+                "Community chat with fellow learners",
                 "Full data export and restore",
               ].map((l) => (
                 <li key={l} className="flex gap-2 text-sm">
@@ -287,7 +301,7 @@ function LandingPage() {
         {/* Final CTA */}
         <Reveal className="mt-12">
           <section className="rounded-3xl border-2 border-primary/40 bg-primary/10 p-6 text-center">
-            <h2 className="text-xl font-extrabold">Say your first Spanish sentence tonight</h2>
+            <h2 className="text-xl font-extrabold">Say your first sentence tonight</h2>
             <p className="mt-2 text-sm text-muted-foreground">
               Setup takes three minutes. Your tutor is waiting.
             </p>
