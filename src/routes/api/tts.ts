@@ -13,13 +13,28 @@ const requestSchema = z.object({
 
 const VOICES = { female: "Kore", male: "Puck" } as const;
 
+const LANGUAGES: Record<string, string> = {
+  es: "authentic conversational Spanish",
+  fr: "authentic conversational French",
+  en: "natural English",
+};
+
 function deliveryPrompt(input: z.infer<typeof requestSchema>) {
-  const pace = input.rate < 0.9 ? "unhurried" : input.rate > 1.08 ? "energetic" : "natural";
-  const language = input.locale.toLowerCase().startsWith("es") ? "authentic conversational Spanish" : "natural English";
+  const language = LANGUAGES[input.locale.toLowerCase().slice(0, 2)] ?? "natural English";
+  const words = input.text.trim().split(/\s+/).length;
+  // Single words and short vocabulary items must be crisp — no drawn-out vowels or dramatic pauses.
+  if (words <= 4) {
+    return [
+      `Pronounce this in ${language}, exactly as a native speaker says it in everyday conversation.`,
+      "Normal speed, crisp and clear, warm tone. Do not stretch, elongate, or drag any syllable or vowel, and do not add pauses.",
+      `Say: ${input.text}`,
+    ].join(" ");
+  }
+  const pace = input.rate < 0.9 ? "relaxed" : input.rate > 1.08 ? "energetic" : "natural";
   return [
     `Speak in ${language}.`,
     `Sound ${input.mood}, emotionally present, and genuinely human.`,
-    `Use a ${pace} conversational pace, expressive intonation, subtle breaths, and meaningful pauses.`,
+    `Use a ${pace} conversational pace with expressive intonation. Keep words at natural length — never stretch or drag syllables.`,
     "Never sound like an announcer, recording, or synthetic assistant.",
     `Say: ${input.text}`,
   ].join(" ");
