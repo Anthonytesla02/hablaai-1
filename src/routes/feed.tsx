@@ -6,21 +6,22 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { deletePost, listFeed, postShareText, sharePlainText, type FeedPost } from "@/lib/feed";
 import { sfx } from "@/lib/sfx";
+import { CommunityChat } from "@/components/CommunityChat";
 
 export const Route = createFileRoute("/feed")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Community Feed — Habla" },
+      { title: "Community Chat & Wins — Habla" },
       {
         name: "description",
         content:
-          "See streaks and simulation results posted by other Habla learners, and share your own wins in one tap.",
+          "Chat live with other Habla learners, swap tips, and celebrate streaks and roleplay wins together.",
       },
-      { property: "og:title", content: "Community Feed — Habla" },
+      { property: "og:title", content: "Community Chat & Wins — Habla" },
       {
         property: "og:description",
-        content: "Streaks, accuracy scores and grammar crimes from learners practising Spanish out loud.",
+        content: "A live chat and wins board for learners practising Spanish, French, German and Russian out loud.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -45,7 +46,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="topo mx-auto flex min-h-[100dvh] w-full max-w-md flex-col px-4 pb-10 pt-5">
       <header className="flex items-center justify-between">
-        <h1 className="text-xl font-extrabold">Community feed</h1>
+        <h1 className="text-xl font-extrabold">Community</h1>
         <Link
           to="/dashboard"
           className="rounded-full bg-primary/10 px-3 py-1.5 text-[11px] font-extrabold text-primary"
@@ -103,9 +104,23 @@ function FeedPage() {
     }
   }
 
+  const [tab, setTab] = useState<"chat" | "wins">("chat");
+
   return (
     <Shell>
-      <p className="mt-1 text-xs text-muted-foreground">
+      <div className="mt-3 grid grid-cols-2 gap-1 rounded-2xl bg-muted p-1 text-[12px] font-extrabold">
+        {(["chat", "wins"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`rounded-xl py-2 ${tab === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
+          >
+            {t === "chat" ? "Chat" : "Wins"}
+          </button>
+        ))}
+      </div>
+      {tab === "chat" ? <CommunityChat /> : <>
+      <p className="mt-3 text-xs text-muted-foreground">
         Streaks and simulation results from learners like you. Post yours from the profile page or after
         any lesson or scene.
       </p>
@@ -192,6 +207,7 @@ function FeedPage() {
           );
         })}
       </ul>
+      </>}
     </Shell>
   );
 }
