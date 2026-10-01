@@ -501,9 +501,8 @@ function AccountSection() {
   }
 
   return (
-    <section className="mt-4 rounded-2xl border-2 border-border bg-card p-4">
-      <p className="text-[11px] font-extrabold text-muted-foreground">Account</p>
-      <div className="mt-3 space-y-3">
+    <div>
+      <div className="space-y-3">
         <label className="block">
           <span className="text-[11px] font-extrabold">Name</span>
           <input value={name} maxLength={24} onChange={(e) => setName(e.target.value)} className={field} />
@@ -541,6 +540,42 @@ function AccountSection() {
           </select>
         </label>
       </div>
+    </div>
+  );
+}
+
+function Fold({
+  title,
+  subtitle,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <section className="mt-4 overflow-hidden rounded-2xl border-2 border-border bg-card">
+      <button
+        onClick={() => {
+          sfx("tap");
+          setOpen(!open);
+        }}
+        className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-3 text-left"
+      >
+        <span className="min-w-0">
+          <span className="block text-[12px] font-extrabold">{title}</span>
+          {subtitle && (
+            <span className="mt-0.5 block text-[11px] text-muted-foreground">{subtitle}</span>
+          )}
+        </span>
+        <ChevronDown
+          className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && <div className="border-t-2 border-border p-3">{children}</div>}
     </section>
   );
 }
