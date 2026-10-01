@@ -30,6 +30,7 @@ import { Route as AuthenticatedSimulateRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedStreakRouteImport } from './routes/_authenticated/streak'
 import { Route as AuthenticatedVaultRouteImport } from './routes/_authenticated/vault'
 import { Route as ApiTtsRouteImport } from './routes/api/tts'
+import { Route as ApiPublicPushDailyReminderRouteImport } from './routes/api/public/push/daily-reminder'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -135,6 +136,12 @@ const ApiTtsRoute = ApiTtsRouteImport.update({
   path: '/api/tts',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicPushDailyReminderRoute =
+  ApiPublicPushDailyReminderRouteImport.update({
+    id: '/api/public/push/daily-reminder',
+    path: '/api/public/push/daily-reminder',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -157,6 +164,7 @@ export interface FileRoutesByFullPath {
   '/streak': typeof AuthenticatedStreakRoute
   '/vault': typeof AuthenticatedVaultRoute
   '/api/tts': typeof ApiTtsRoute
+  '/api/public/push/daily-reminder': typeof ApiPublicPushDailyReminderRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -179,6 +187,7 @@ export interface FileRoutesByTo {
   '/streak': typeof AuthenticatedStreakRoute
   '/vault': typeof AuthenticatedVaultRoute
   '/api/tts': typeof ApiTtsRoute
+  '/api/public/push/daily-reminder': typeof ApiPublicPushDailyReminderRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -203,6 +212,7 @@ export interface FileRoutesById {
   '/_authenticated/streak': typeof AuthenticatedStreakRoute
   '/_authenticated/vault': typeof AuthenticatedVaultRoute
   '/api/tts': typeof ApiTtsRoute
+  '/api/public/push/daily-reminder': typeof ApiPublicPushDailyReminderRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -227,6 +237,7 @@ export interface FileRouteTypes {
     | '/streak'
     | '/vault'
     | '/api/tts'
+    | '/api/public/push/daily-reminder'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -249,6 +260,7 @@ export interface FileRouteTypes {
     | '/streak'
     | '/vault'
     | '/api/tts'
+    | '/api/public/push/daily-reminder'
   id:
     | '__root__'
     | '/'
@@ -272,6 +284,7 @@ export interface FileRouteTypes {
     | '/_authenticated/streak'
     | '/_authenticated/vault'
     | '/api/tts'
+    | '/api/public/push/daily-reminder'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -286,6 +299,7 @@ export interface RootRouteChildren {
   StartRoute: typeof StartRoute
   TermsRoute: typeof TermsRoute
   ApiTtsRoute: typeof ApiTtsRoute
+  ApiPublicPushDailyReminderRoute: typeof ApiPublicPushDailyReminderRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -437,6 +451,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTtsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/push/daily-reminder': {
+      id: '/api/public/push/daily-reminder'
+      path: '/api/public/push/daily-reminder'
+      fullPath: '/api/public/push/daily-reminder'
+      preLoaderRoute: typeof ApiPublicPushDailyReminderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -481,6 +502,7 @@ const rootRouteChildren: RootRouteChildren = {
   StartRoute: StartRoute,
   TermsRoute: TermsRoute,
   ApiTtsRoute: ApiTtsRoute,
+  ApiPublicPushDailyReminderRoute: ApiPublicPushDailyReminderRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
