@@ -17,3 +17,5 @@
 - [x] Landing page + meta tags: 21-day beginner-to-sentences proof
 - [x] Community chat (users send messages)
 - [x] Fixed feedback button + pop-up on all pages; feedback list in profile
+- [x] Feed social/search wording covers all four languages
+- [x] Secure admin feedback inbox

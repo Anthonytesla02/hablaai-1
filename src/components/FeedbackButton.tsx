@@ -32,7 +32,7 @@ export function FeedbackButton() {
     setSending(true);
     try {
       await sendFeedback({ mood, rating, body, page: pathname });
-      await qc.invalidateQueries({ queryKey: ["my-feedback"] });
+      await qc.invalidateQueries({ queryKey: ["feedback-inbox"] });
       toast.success("Thank you! Your feedback was sent.");
       setBody("");
       setRating(null);

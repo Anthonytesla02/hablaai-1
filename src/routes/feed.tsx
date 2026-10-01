@@ -12,16 +12,16 @@ export const Route = createFileRoute("/feed")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Community Chat & Wins — Habla" },
+      { title: "Language Learner Community — Habla" },
       {
         name: "description",
         content:
-          "Chat live with other Habla learners, swap tips, and celebrate streaks and roleplay wins together.",
+          "Chat with Habla learners studying Spanish, French, German and Russian, swap tips, and celebrate streaks and roleplay wins.",
       },
-      { property: "og:title", content: "Community Chat & Wins — Habla" },
+      { property: "og:title", content: "Language Learner Community — Habla" },
       {
         property: "og:description",
-        content: "A live chat and wins board for learners practising Spanish, French, German and Russian out loud.",
+        content: "Chat and share wins with learners practising Spanish, French, German and Russian out loud.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

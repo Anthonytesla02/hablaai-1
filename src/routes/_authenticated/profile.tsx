@@ -17,7 +17,7 @@ import {
 import { toast } from "sonner";
 import { createPost } from "@/lib/feed";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { MOODS, deleteFeedback, listMyFeedback } from "@/lib/feedback";
+import { MOODS, deleteFeedback, listFeedbackInbox } from "@/lib/feedback";
 import { AppFrame, Hydrated } from "@/components/AppFrame";
 import { gamification, langById, onboarding } from "@/lib/content";
 import { useApp, useLevel } from "@/lib/store";
@@ -587,10 +587,14 @@ function Fold({
 
 function FeedbackFold() {
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ["my-feedback"], queryFn: listMyFeedback });
-  const items = data ?? [];
+  const { data, isLoading } = useQuery({ queryKey: ["feedback-inbox"], queryFn: listFeedbackInbox });
+  const items = data?.items ?? [];
+  const isAdmin = data?.isAdmin ?? false;
   return (
-    <Fold title="My feedback" subtitle={items.length > 0 ? `${items.length} sent` : "Nothing sent yet"}>
+    <Fold
+      title={isAdmin ? "All feedback" : "My feedback"}
+      subtitle={items.length > 0 ? `${items.length} ${isAdmin ? "received" : "sent"}` : isAdmin ? "Nothing received yet" : "Nothing sent yet"}
+    >
       {isLoading && <p className="text-xs text-muted-foreground">Loading…</p>}
       <ul className="space-y-2">
         {items.map((f) => {
@@ -605,11 +609,16 @@ function FeedbackFold() {
                 <span className="text-muted-foreground">{new Date(f.created_at).toLocaleDateString()}</span>
               </div>
               <p className="mt-1.5 whitespace-pre-wrap text-[13px] leading-relaxed">{f.body}</p>
+               {isAdmin && (
+                 <p className="mt-1 text-[10px] text-muted-foreground">
+                   From learner {f.user_id.slice(0, 8)} · Page {f.page || "/"}
+                 </p>
+               )}
               <button
                 onClick={async () => {
                   try {
                     await deleteFeedback(f.id);
-                    await qc.invalidateQueries({ queryKey: ["my-feedback"] });
+                    await qc.invalidateQueries({ queryKey: ["feedback-inbox"] });
                   } catch {
                     toast.error("Couldn't delete that");
                   }
