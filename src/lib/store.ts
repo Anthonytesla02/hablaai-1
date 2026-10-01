@@ -80,6 +80,8 @@ type State = {
   resetAll: () => void;
   todayKey: () => string;
   registerLogin: () => void;
+  /** Breaks or freeze-protects the streak when whole days were missed. */
+  refreshStreak: () => void;
   addXp: (n: number) => void;
   spend: (n: number) => boolean;
   purchase: (id: string, cost: number) => boolean;
@@ -203,7 +205,23 @@ export const useApp = create<State>()(
       resetAll: () => set({ ...initial, ghostSeed: Math.floor(Math.random() * 1000) }),
       todayKey: () => dayKey(),
 
+      refreshStreak: () => {
+        const s = get();
+        if (!s.lastActiveDay || s.streak === 0) return;
+        const today = dayKey();
+        const yesterday = dayKey(new Date(Date.now() - 86400000));
+        if (s.lastActiveDay === today || s.lastActiveDay === yesterday) return;
+        const missed = Math.round((Date.parse(yesterday) - Date.parse(s.lastActiveDay)) / 86400000);
+        if (missed > 0 && missed <= s.freezes) {
+          // Streak freezes cover each missed day; the streak survives.
+          set({ freezes: s.freezes - missed, lastActiveDay: yesterday });
+        } else {
+          set({ streak: 0 });
+        }
+      },
+
       registerLogin: () => {
+        get().refreshStreak();
         const today = dayKey();
         const s = get();
         if (s.lastLoginDay === today && s.quests.day === today) return;
