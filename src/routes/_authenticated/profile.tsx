@@ -479,7 +479,10 @@ function AccountSection() {
   async function save() {
     sfx("tap");
     const trimmed = name.trim().slice(0, 24);
-    if (!trimmed) return toast.error("Your name can't be empty");
+    if (!trimmed) {
+      toast.error("Your name can't be empty");
+      return;
+    }
     setSaving(true);
     try {
       if (trimmed !== profile!.callsign) update({ callsign: trimmed });
