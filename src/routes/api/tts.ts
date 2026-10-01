@@ -16,6 +16,8 @@ const VOICES = { female: "Kore", male: "Puck" } as const;
 const LANGUAGES: Record<string, string> = {
   es: "authentic conversational Spanish",
   fr: "authentic conversational French",
+  de: "authentic conversational German",
+  ru: "authentic conversational Russian",
   en: "natural English",
 };
 

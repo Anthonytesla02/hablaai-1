@@ -13,6 +13,20 @@ import fw4 from "@/data/course/french/french_week_4.json";
 import frManifestRaw from "@/data/course/french/course_manifest.json";
 import frDailyRaw from "@/data/course/french/daily_challenges.json";
 import frSpecialRaw from "@/data/course/french/special_challenges.json";
+import gw1 from "@/data/course/german/german_week_1.json";
+import gw2 from "@/data/course/german/german_week_2.json";
+import gw3 from "@/data/course/german/german_week_3.json";
+import gw4 from "@/data/course/german/german_week_4.json";
+import gManifest from "@/data/course/german/course_manifest.json";
+import gDaily from "@/data/course/german/daily_challenges.json";
+import gSpecial from "@/data/course/german/special_challenges.json";
+import rw1 from "@/data/course/russian/russian_week_1.json";
+import rw2 from "@/data/course/russian/russian_week_2.json";
+import rw3 from "@/data/course/russian/russian_week_3.json";
+import rw4 from "@/data/course/russian/russian_week_4.json";
+import rManifest from "@/data/course/russian/course_manifest.json";
+import rDaily from "@/data/course/russian/daily_challenges.json";
+import rSpecial from "@/data/course/russian/special_challenges.json";
 
 export type CourseVocab = {
   id: string;
@@ -91,7 +105,7 @@ export const reviewSchedule = courseManifest.review_schedule;
 
 /** Checkpoint lessons close each week (day 7, 14, 21, 28) in every course. */
 const CHECKPOINT_IDS = new Set(
-  [courseManifest, frManifestRaw as unknown as typeof courseManifest].flatMap((m) =>
+  [courseManifest, ...([frManifestRaw, gManifest, rManifest] as unknown as (typeof courseManifest)[])].flatMap((m) =>
     m.weeks.map((w) => w.checkpoint_lesson_id),
   ),
 );
@@ -110,16 +124,24 @@ export function passThreshold(lessonId: string) {
 type CourseWeek = { week: number; title: string; lessons: CourseLesson[] };
 
 /** Authored vocab may name the target-language field `fr`; normalise it to `es` (the target slot). */
+function targetText(o: object): string {
+  const r = o as Record<string, unknown>;
+  const v = r["es"] ?? r["fr"] ?? r["de"] ?? r["ru"];
+  return typeof v === "string" ? v : "";
+}
+
 function buildWeeks(raw: RawWeek[]): CourseWeek[] {
   return raw.map((w) => ({
     week: w.week,
     title: w.title,
     lessons: w.lessons.map((l) => ({
       ...l,
-      vocabulary: l.vocabulary.map((v) => {
-        const anyV = v as CourseVocab & { fr?: string };
-        return { ...v, es: anyV.es ?? anyV.fr ?? "" };
-      }),
+      vocabulary: l.vocabulary.map((v) => ({ ...v, es: targetText(v) })),
+      examples: l.examples.map((e) => ({ ...e, es: targetText(e) })),
+      dialogue: {
+        ...l.dialogue,
+        lines: l.dialogue.lines.map((line) => ({ ...line, es: targetText(line) })),
+      },
       week: w.week,
       weekTitle: w.title,
     })),
@@ -189,6 +211,8 @@ const COURSES: Record<string, Course> = {
     frDailyRaw,
     frSpecialRaw,
   ),
+  german: makeCourse("German", buildWeeks([gw1, gw2, gw3, gw4] as unknown as RawWeek[]), gDaily, gSpecial),
+  russian: makeCourse("Russian", buildWeeks([rw1, rw2, rw3, rw4] as unknown as RawWeek[]), rDaily, rSpecial),
 };
 
 const EMPTY: Course = { label: "", weeks: [], lessons: [], daily: [], specials: [] };

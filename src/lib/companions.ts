@@ -295,5 +295,33 @@ export type CompanionBrief = {
   noTranslate: boolean;
   /** Only speaks up when the learner actually makes a mistake. */
   interjectOnly: boolean;
-  memory: string[];
+  memory: string[  {
+    id: "lena",
+    lang: "german",
+    name: "Lena",
+    flag: "🇩🇪",
+    region: "Berlin, Germany",
+    age: 25,
+    bio: "Sound engineer in Kreuzberg, cycles everywhere, brutally honest and very funny.",
+    dialect: "Everyday Berlin German. Uses na, krass, genau, alles klar, Moin; defaults to du with peers.",
+    locale: "de-DE",
+    avatar: sofiaImg,
+    personalityId: "local",
+    teaches: "Teaches the German people actually speak — relaxed, direct, and full of everyday phrases.",
+  },
+  {
+    id: "anya",
+    lang: "russian",
+    name: "Anya",
+    flag: "🇷🇺",
+    region: "Saint Petersburg, Russia",
+    age: 27,
+    bio: "Literature graduate, loves white nights on the Neva, patient and precise.",
+    dialect: "Standard Russian. Clear stress, correct ты/вы register, explains cases simply.",
+    locale: "ru-RU",
+    avatar: luciaImg,
+    personalityId: "professor",
+    teaches: "Teaches properly: clear pronunciation, cases made simple, every mistake explained.",
+  },
+];
 };
