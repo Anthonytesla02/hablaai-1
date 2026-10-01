@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      community_messages: {
+        Row: {
+          body: string
+          callsign: string
+          created_at: string
+          id: string
+          lang_id: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          callsign?: string
+          created_at?: string
+          id?: string
+          lang_id?: string
+          user_id?: string
+        }
+        Update: {
+          body?: string
+          callsign?: string
+          created_at?: string
+          id?: string
+          lang_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       completed_days: {
         Row: {
           completed_at: string
@@ -61,6 +88,36 @@ export type Database = {
           kind?: string
           stats?: Json
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      feedback: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          mood: string
+          page: string
+          rating: number | null
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          mood?: string
+          page?: string
+          rating?: number | null
+          user_id?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          mood?: string
+          page?: string
+          rating?: number | null
           user_id?: string
         }
         Relationships: []
