@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
   Archive,
+  Bell,
   ChevronRight,
 
   Dumbbell,
@@ -21,6 +22,9 @@ import { useCompanion } from "@/lib/use-companion";
 import { setSfxMuted, sfxMuted, sfx } from "@/lib/sfx";
 import { useHandler } from "@/lib/handler-bus";
 import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
+import { getPushConfig, sendTestPush } from "@/lib/push.functions";
+import { disablePush, enablePush, pushStatus } from "@/lib/onesignal";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({
@@ -258,6 +262,7 @@ function ProfilePage() {
             on={!tutorMuted}
             set={() => toggleTutorMute()}
           />
+          <PushRow />
         </div>
       </section>
 
@@ -399,5 +404,51 @@ function Row({
         />
       </span>
     </button>
+  );
+}
+
+const PUSH_COPY: Record<string, string> = {
+  "open-in-new-tab": "Open the app in its own browser tab to turn on notifications.",
+  denied: "Notifications are blocked — allow them in your browser's site settings.",
+  "not-configured": "Notifications aren't set up yet.",
+  unsupported: "This browser doesn't support notifications.",
+};
+
+function PushRow() {
+  const getConfig = useServerFn(getPushConfig);
+  const testPush = useServerFn(sendTestPush);
+  const [appId, setAppId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [on, setOn] = useState(false);
+
+  useEffect(() => {
+    void (async () => {
+      const [{ appId: id }, { data }] = await Promise.all([getConfig(), supabase.auth.getUser()]);
+      setAppId(id);
+      setUserId(data.user?.id ?? null);
+      if (id && data.user) setOn(await pushStatus(id, data.user.id).catch(() => false));
+    })();
+  }, [getConfig]);
+
+  return (
+    <Row
+      label="Practice reminders"
+      icon={Bell}
+      note="Get a push notification so you never lose your streak."
+      on={on}
+      set={async (v) => {
+        try {
+          if (!userId) return;
+          const r = v ? await enablePush(appId, userId) : await disablePush(appId);
+          setOn(r === "on");
+          if (r === "on") {
+            toast.success("Reminders on!");
+            void testPush().catch(() => undefined);
+          } else if (PUSH_COPY[r]) toast(PUSH_COPY[r]);
+        } catch (e) {
+          toast.error((e as Error).message || "Couldn't change notifications.");
+        }
+      }}
+    />
   );
 }

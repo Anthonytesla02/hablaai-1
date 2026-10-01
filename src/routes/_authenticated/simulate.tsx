@@ -44,7 +44,7 @@ import { useVoiceAnswer } from "@/lib/voice/use-voice-answer";
 import { TalkButton } from "@/components/voice/VoiceAnswer";
 import { translateUtterance } from "@/lib/translate.functions";
 import { bcp47, langById } from "@/lib/content";
-import { courseWeeks, lessonById } from "@/lib/course";
+import { courseFor, lessonById } from "@/lib/course";
 import { handlerReact, handlerSay } from "@/lib/handler-bus";
 import { sfx } from "@/lib/sfx";
 import { speak, stopSpeaking } from "@/lib/speech";
@@ -265,8 +265,8 @@ function dailyScene(lessonId: string): Scene | null {
 }
 
 /** Builds a recall simulation covering everything taught in a given week. */
-function weeklyScene(week: number): Scene | null {
-  const w = courseWeeks.find((x) => x.week === week);
+function weeklyScene(week: number, langId: string): Scene | null {
+  const w = courseFor(langId).weeks.find((x) => x.week === week);
   if (!w) return null;
   const words = w.lessons
     .flatMap((l) => l.vocabulary.slice(0, 5).map((v) => v.es))
@@ -391,7 +391,7 @@ function SimulatePage() {
       return;
     }
     if (weekly !== undefined) {
-      const s = weeklyScene(weekly);
+      const s = weeklyScene(weekly, profile?.langId ?? "spanish");
       if (s) void begin(s);
       else void navigate({ to: "/dashboard" });
     }

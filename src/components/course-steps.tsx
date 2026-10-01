@@ -481,7 +481,7 @@ export function WriteStep({ act, locale, onDone }: Props & { act: CourseActivity
         onChange={(e) => setValue(e.target.value)}
         rows={2}
         disabled={settled}
-        placeholder={template ? "Write your own version" : "Type your answer in Spanish"}
+        placeholder={template ? "Write your own version" : "Type your answer"}
         className="w-full rounded-sm border border-input bg-card px-3 py-2 text-base outline-none focus:border-secondary"
       />
 

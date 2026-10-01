@@ -232,6 +232,34 @@ export const CHARACTERS: NativeCharacter[] = [
     personalityId: "philly",
     teaches:
       "Stays out your way while you talk. The second you slip: reaction, correction, \"your turn\" — then back to the conversation.",
+  },  {
+    id: "camille",
+    lang: "french",
+    name: "Camille",
+    flag: "🇫🇷",
+    region: "Paris, France",
+    age: 24,
+    bio: "Design student in the 11e, collects vinyl, will argue about the best boulangerie for hours.",
+    dialect:
+      "Parisian French. Uses salut, ça marche, carrément, trop bien, du coup, and natural liaisons. Defaults to tu with friends.",
+    locale: "fr-FR",
+    avatar: sofiaImg,
+    personalityId: "local",
+    teaches: "Teaches the French people actually speak in Paris — casual, fast, and full of culture.",
+  },
+  {
+    id: "elise",
+    lang: "french",
+    name: "Élise",
+    flag: "🇫🇷",
+    region: "Lyon, France",
+    age: 29,
+    bio: "Teaches at a language school, runs along the Saône at dawn, strict but kind.",
+    dialect: "Standard metropolitan French. Clear articulation, correct vous/tu register, explains every mistake.",
+    locale: "fr-FR",
+    avatar: luciaImg,
+    personalityId: "professor",
+    teaches: "Teaches properly: clear grammar, correct register, every mistake named and explained.",
   },
 ];
 

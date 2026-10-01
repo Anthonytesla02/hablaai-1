@@ -6,6 +6,13 @@ import w4 from "@/data/course/spanish_week_4.json";
 import manifestRaw from "@/data/course/course_manifest.json";
 import dailyRaw from "@/data/course/daily_challenges.json";
 import specialRaw from "@/data/course/special_challenges.json";
+import fw1 from "@/data/course/french/french_week_1.json";
+import fw2 from "@/data/course/french/french_week_2.json";
+import fw3 from "@/data/course/french/french_week_3.json";
+import fw4 from "@/data/course/french/french_week_4.json";
+import frManifestRaw from "@/data/course/french/course_manifest.json";
+import frDailyRaw from "@/data/course/french/daily_challenges.json";
+import frSpecialRaw from "@/data/course/french/special_challenges.json";
 
 export type CourseVocab = {
   id: string;
@@ -82,8 +89,12 @@ export const courseManifest = manifestRaw as unknown as {
 export const masteryRules = courseManifest.mastery_rules;
 export const reviewSchedule = courseManifest.review_schedule;
 
-/** Checkpoint lessons close each week (day 7, 14, 21, 28). */
-const CHECKPOINT_IDS = new Set(courseManifest.weeks.map((w) => w.checkpoint_lesson_id));
+/** Checkpoint lessons close each week (day 7, 14, 21, 28) in every course. */
+const CHECKPOINT_IDS = new Set(
+  [courseManifest, frManifestRaw as unknown as typeof courseManifest].flatMap((m) =>
+    m.weeks.map((w) => w.checkpoint_lesson_id),
+  ),
+);
 export function isCheckpointLesson(lessonId: string) {
   return CHECKPOINT_IDS.has(lessonId);
 }
@@ -96,13 +107,26 @@ export function passThreshold(lessonId: string) {
 }
 
 
-export const courseWeeks: { week: number; title: string; lessons: CourseLesson[] }[] = WEEKS.map(
-  (w) => ({
+type CourseWeek = { week: number; title: string; lessons: CourseLesson[] };
+
+/** Authored vocab may name the target-language field `fr`; normalise it to `es` (the target slot). */
+function buildWeeks(raw: RawWeek[]): CourseWeek[] {
+  return raw.map((w) => ({
     week: w.week,
     title: w.title,
-    lessons: w.lessons.map((l) => ({ ...l, week: w.week, weekTitle: w.title })),
-  }),
-);
+    lessons: w.lessons.map((l) => ({
+      ...l,
+      vocabulary: l.vocabulary.map((v) => {
+        const anyV = v as CourseVocab & { fr?: string };
+        return { ...v, es: anyV.es ?? anyV.fr ?? "" };
+      }),
+      week: w.week,
+      weekTitle: w.title,
+    })),
+  }));
+}
+
+export const courseWeeks: CourseWeek[] = buildWeeks(WEEKS);
 
 export const courseLessons: CourseLesson[] = courseWeeks
   .flatMap((w) => w.lessons)
@@ -137,19 +161,60 @@ export function courseKey(lessonId: string) {
 export function lessonIdFromKey(key: string) {
   return key.startsWith("course:") ? key.slice(7) : null;
 }
-export function lessonById(id: string) {
-  return courseLessons.find((l) => l.id === id);
-}
-export function challengeForDay(day: number) {
-  return dailyChallenges.find((c) => c.course_day === `Day ${day}`);
-}
-export function unlockedSpecials(day: number) {
-  return specialChallenges.filter((c) => c.unlock_after_day <= day);
+/* ── Per-language course registry ────────────────────────────────────── */
+
+type Course = {
+  label: string;
+  weeks: CourseWeek[];
+  lessons: CourseLesson[];
+  daily: DailyChallenge[];
+  specials: SpecialChallenge[];
+};
+
+function makeCourse(label: string, weeks: CourseWeek[], daily: unknown, specials: unknown): Course {
+  return {
+    label,
+    weeks,
+    lessons: weeks.flatMap((w) => w.lessons).sort((a, b) => a.day - b.day),
+    daily: (daily as { challenges: DailyChallenge[] }).challenges,
+    specials: (specials as { challenges: SpecialChallenge[] }).challenges,
+  };
 }
 
-/** True when the authored 28-day course applies to this language. */
+const COURSES: Record<string, Course> = {
+  spanish: makeCourse("Spanish", courseWeeks, dailyRaw, specialRaw),
+  french: makeCourse(
+    "French",
+    buildWeeks([fw1, fw2, fw3, fw4] as unknown as RawWeek[]),
+    frDailyRaw,
+    frSpecialRaw,
+  ),
+};
+
+const EMPTY: Course = { label: "", weeks: [], lessons: [], daily: [], specials: [] };
+
+/** The authored 28-day course for a language (empty when none exists). */
+export function courseFor(langId: string): Course {
+  return COURSES[langId] ?? EMPTY;
+}
+
+export function lessonById(id: string) {
+  for (const c of Object.values(COURSES)) {
+    const hit = c.lessons.find((l) => l.id === id);
+    if (hit) return hit;
+  }
+  return undefined;
+}
+export function challengeForDay(day: number, langId = courseLangId) {
+  return courseFor(langId).daily.find((c) => c.course_day === `Day ${day}`);
+}
+export function unlockedSpecials(day: number, langId = courseLangId) {
+  return courseFor(langId).specials.filter((c) => c.unlock_after_day <= day);
+}
+
+/** True when an authored 28-day course applies to this language. */
 export function hasCourse(langId: string) {
-  return langId === courseLangId;
+  return langId in COURSES;
 }
 
 /* ── Activity shaping ────────────────────────────────────────────────── */
