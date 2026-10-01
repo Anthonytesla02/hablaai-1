@@ -311,6 +311,9 @@ function ProfilePage() {
         </ul>
       </Fold>
 
+      <FeedbackFold />
+
+
       <button
         onClick={async () => {
           sfx("tap");
