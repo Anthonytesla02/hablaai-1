@@ -414,6 +414,7 @@ const PUSH_COPY: Record<string, string> = {
   denied: "Notifications are blocked — allow them in your browser's site settings.",
   "not-configured": "Notifications aren't set up yet.",
   unsupported: "This browser doesn't support notifications.",
+  "needs-web-setup": "Notifications need one more setup step in OneSignal for this website address.",
 };
 
 function PushRow() {
