@@ -140,7 +140,8 @@ function buildWeeks(raw: RawWeek[]): CourseWeek[] {
       examples: l.examples.map((e) => ({ ...e, es: targetText(e) })),
       dialogue: {
         ...l.dialogue,
-        lines: l.dialogue.lines.map((line) => ({ ...line, es: targetText(line) })),
+        title: l.dialogue?.title ?? l.title,
+        lines: (l.dialogue?.lines ?? []).map((line) => ({ ...line, es: targetText(line) })),
       },
       week: w.week,
       weekTitle: w.title,
