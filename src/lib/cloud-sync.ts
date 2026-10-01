@@ -115,6 +115,7 @@ export async function syncFromCloud(userId: string): Promise<void> {
       perfectWeek: profileRow.perfect_week,
       settings: profileRow.settings as { rate: number; captions: boolean },
     });
+    useApp.getState().refreshStreak();
   }
 
   // Mark that cloud sync is active
