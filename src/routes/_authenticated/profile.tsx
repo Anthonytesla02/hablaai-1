@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { createPost } from "@/lib/feed";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { MOODS, deleteFeedback, listMyFeedback } from "@/lib/feedback";
 import { AppFrame, Hydrated } from "@/components/AppFrame";
 import { gamification, langById, onboarding } from "@/lib/content";
 import { useApp, useLevel } from "@/lib/store";
@@ -311,6 +313,9 @@ function ProfilePage() {
         </ul>
       </Fold>
 
+      <FeedbackFold />
+
+
       <button
         onClick={async () => {
           sfx("tap");
@@ -577,5 +582,49 @@ function Fold({
       </button>
       {open && <div className="border-t-2 border-border p-3">{children}</div>}
     </section>
+  );
+}
+
+function FeedbackFold() {
+  const qc = useQueryClient();
+  const { data, isLoading } = useQuery({ queryKey: ["my-feedback"], queryFn: listMyFeedback });
+  const items = data ?? [];
+  return (
+    <Fold title="My feedback" subtitle={items.length > 0 ? `${items.length} sent` : "Nothing sent yet"}>
+      {isLoading && <p className="text-xs text-muted-foreground">Loading…</p>}
+      <ul className="space-y-2">
+        {items.map((f) => {
+          const m = MOODS.find((x) => x.id === f.mood);
+          return (
+            <li key={f.id} className="rounded-2xl border-2 border-border bg-card p-3">
+              <div className="flex items-center justify-between gap-2 text-[11px] font-extrabold">
+                <span>
+                  {m?.emoji} {m?.label ?? f.mood}
+                  {f.rating ? ` · ${"★".repeat(f.rating)}` : ""}
+                </span>
+                <span className="text-muted-foreground">{new Date(f.created_at).toLocaleDateString()}</span>
+              </div>
+              <p className="mt-1.5 whitespace-pre-wrap text-[13px] leading-relaxed">{f.body}</p>
+              <button
+                onClick={async () => {
+                  try {
+                    await deleteFeedback(f.id);
+                    await qc.invalidateQueries({ queryKey: ["my-feedback"] });
+                  } catch {
+                    toast.error("Couldn't delete that");
+                  }
+                }}
+                className="mt-2 text-[10px] font-extrabold text-muted-foreground underline"
+              >
+                Delete
+              </button>
+            </li>
+          );
+        })}
+        {!isLoading && items.length === 0 && (
+          <li className="text-xs text-muted-foreground">Tap the Feedback button anytime to tell us what you think.</li>
+        )}
+      </ul>
+    </Fold>
   );
 }
