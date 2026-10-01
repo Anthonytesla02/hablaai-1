@@ -10,11 +10,17 @@ export const MOODS: { id: FeedbackMood; emoji: string; label: string }[] = [
 
 export type FeedbackItem = {
   id: string;
+  user_id: string;
   mood: string;
   rating: number | null;
   body: string;
   page: string;
   created_at: string;
+};
+
+export type FeedbackInbox = {
+  isAdmin: boolean;
+  items: FeedbackItem[];
 };
 
 export async function sendFeedback(input: { mood: FeedbackMood; rating: number | null; body: string; page: string }) {
@@ -30,14 +36,21 @@ export async function sendFeedback(input: { mood: FeedbackMood; rating: number |
   if (error) throw error;
 }
 
-export async function listMyFeedback(): Promise<FeedbackItem[]> {
+export async function listFeedbackInbox(): Promise<FeedbackInbox> {
+  const [{ data: auth }, { data: roles, error: roleError }] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase.from("user_roles").select("role").eq("role", "admin").limit(1),
+  ]);
+  if (!auth.user) throw new Error("signed-out");
+  if (roleError) throw roleError;
+  const isAdmin = (roles ?? []).some((role) => role.role === "admin");
   const { data, error } = await supabase
     .from("feedback")
-    .select("id,mood,rating,body,page,created_at")
+    .select("id,user_id,mood,rating,body,page,created_at")
     .order("created_at", { ascending: false })
-    .limit(50);
+    .limit(isAdmin ? 250 : 50);
   if (error) throw error;
-  return data ?? [];
+  return { isAdmin, items: data ?? [] };
 }
 
 export async function deleteFeedback(id: string) {
