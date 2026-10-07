@@ -142,12 +142,18 @@ function VaultPage() {
 
   // Deep link from the map: /vault?day=arc_1:day_2 starts that checkpoint drill.
   useEffect(() => {
-    if (day && decks.some((d) => d.id === day)) setRunId(day);
+    const d = day ? decks.find((x) => x.id === day) : undefined;
+    if (d && !mixed) {
+      setMixed(d);
+      setRunId(day);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [day, decks]);
 
   if (!profile) return null;
   const locale = bcp47(profile.langId);
-  const active = runId === "mixed" ? mixed : decks.find((d) => d.id === runId);
+  // Snapshot the deck when a run starts so it doesn't shift as cards are graded.
+  const active = mixed ?? (runId ? decks.find((d) => d.id === runId) : undefined);
 
   if (active) {
     return (
@@ -206,6 +212,7 @@ function VaultPage() {
           <li key={d.id}>
             <button
               onClick={() => {
+                setMixed(d);
                 setRunId(d.id);
                 handlerReact("recallStart", "nudge");
               }}
