@@ -19,3 +19,4 @@
 - [x] Fixed feedback button + pop-up on all pages; feedback list in profile
 - [x] Feed social/search wording covers all four languages
 - [x] Secure admin feedback inbox
+- [x] Practice deck: completed decks leave the list; 20-item mixed challenge
