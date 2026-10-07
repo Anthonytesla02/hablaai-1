@@ -7,11 +7,11 @@ const Turn = z.object({
 });
 
 const CompanionBrief = z.object({
-  personality: z.string().max(900).default(""),
+  personality: z.string().max(2000).default(""),
   interjectOnly: z.boolean().default(false),
   characterName: z.string().max(60).default(""),
-  characterBio: z.string().max(300).default(""),
-  dialect: z.string().max(300).default(""),
+  characterBio: z.string().max(800).default(""),
+  dialect: z.string().max(600).default(""),
   slang: z.number().int().min(0).max(3).default(1),
   roast: z.number().int().min(0).max(3).default(1),
   localMode: z.boolean().default(true),
@@ -21,9 +21,9 @@ const CompanionBrief = z.object({
 
 const SimInput = z.object({
   language: z.string().min(2).max(40),
-  setting: z.string().min(2).max(300),
+  setting: z.string().min(2).max(1200),
   character: z.string().min(2).max(120),
-  goals: z.array(z.string().max(160)).max(8).default([]),
+  goals: z.array(z.string().max(600)).max(8).default([]),
   minExchanges: z.number().int().min(2).max(30).default(10),
   exchanges: z.number().int().min(0).max(200).default(0),
 
@@ -132,7 +132,7 @@ Rules:
           "X-Lovable-AIG-SDK": "fetch",
         },
         body: JSON.stringify({
-          model: "google/gemini-3.6-flash",
+          model: "google/gemini-3.8-flash",
           response_format: { type: "json_object" },
           messages: [
             { role: "system", content: system },

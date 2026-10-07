@@ -52,7 +52,7 @@ Rules: "translation" = short English meaning in this context (max 6 words).
           "X-Lovable-AIG-SDK": "fetch",
         },
         body: JSON.stringify({
-          model: "google/gemini-3.6-flash",
+          model: "google/gemini-3.8-flash",
           response_format: { type: "json_object" },
           messages: [
             { role: "system", content: system },
