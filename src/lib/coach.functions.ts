@@ -126,7 +126,7 @@ Never write more than one sentence per field. No paragraphs, ever.`;
           "X-Lovable-AIG-SDK": "fetch",
         },
         body: JSON.stringify({
-          model: "google/gemini-3.6-flash",
+          model: "google/gemini-3.8-flash",
           response_format: { type: "json_object" },
           messages: [
             { role: "system", content: system },

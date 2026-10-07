@@ -246,7 +246,7 @@ const SCENES: Scene[] = [
 function dailyScene(lessonId: string): Scene | null {
   const l = lessonById(lessonId);
   if (!l) return null;
-  const words = l.vocabulary.slice(0, 8).map((v) => v.es).join(", ");
+  const words = l.vocabulary.slice(0, 8).map((v) => v.es).filter(Boolean).join(", ");
   return {
     id: "cafe",
     label: `Field practice — ${l.title}`,
@@ -911,7 +911,7 @@ function SimulatePage() {
         {(thinking || checking) && (
           <p className="hud flex items-center gap-2 text-[10px] text-muted-foreground">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />{" "}
-            {checking ? "CHECKING YOUR SPANISH…" : "THEY’RE RESPONDING…"}
+            {checking ? `CHECKING YOUR ${language.toUpperCase()}…` : "THEY’RE RESPONDING…"}
           </p>
         )}
         <div ref={bottomRef} />
