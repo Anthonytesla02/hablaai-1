@@ -11,6 +11,8 @@ import { Completion } from "@/components/Completion";
 import { handlerReact, handlerSay } from "@/lib/handler-bus";
 import { useApp } from "@/lib/store";
 import type { SrsCard } from "@/lib/srs";
+import { generateMixedDeck } from "@/lib/mixed.functions";
+import { langName } from "@/lib/mixed-lang";
 
 export const Route = createFileRoute("/_authenticated/vault")({
   validateSearch: (s: Record<string, unknown>): { day: string } => ({
@@ -89,6 +91,8 @@ function VaultPage() {
 
   const [runId, setRunId] = useState<string | null>(null);
   const [mixed, setMixed] = useState<Deck | null>(null);
+  const [building, setBuilding] = useState(false);
+  const [buildError, setBuildError] = useState("");
 
   const decks: Deck[] = useMemo(() => {
     if (!profile) return [];
@@ -180,32 +184,63 @@ function VaultPage() {
       </p>
 
       <button
-        disabled={total === 0}
-        onClick={() => {
+        disabled={total === 0 || building}
+        onClick={async () => {
           const all = Object.values(cards).filter((c) => c.lang === profile.langId);
-          const picked = buildMixed(all);
-          setMixed({
-            id: "mixed",
-            label: "Mixed challenge",
-            sub: "Random mix from every deck",
-            cards: picked,
-            due: 0,
-            mixed: true,
-          });
-          setRunId("mixed");
-          handlerReact("recallStart", "nudge");
+          setBuilding(true);
+          setBuildError("");
+          try {
+            const sample = buildMixed(all).concat(all).slice(0, 120);
+            const res = await generateMixedDeck({
+              data: {
+                language: langName(profile.langId),
+                known: sample.map((c) => ({ target: c.target.slice(0, 300), translation: c.translation.slice(0, 300) })),
+              },
+            });
+            if (res.items.length === 0) {
+              setBuildError(res.error === "busy" ? "The tutor is busy — try again in a minute." : "Couldn't create new items right now. Try again.");
+              return;
+            }
+            const lapses = { EASY: 0, MEDIUM: 1, HARD: 2 } as const;
+            const fresh: SrsCard[] = res.items.map((it, n) => ({
+              id: `mixed:${Date.now()}:${n}`,
+              target: it.target,
+              translation: it.translation,
+              lang: profile.langId,
+              ease: 2.5,
+              intervalDays: 0,
+              dueAt: 0,
+              reps: 0,
+              lapses: lapses[it.level],
+            }));
+            setMixed({
+              id: "mixed",
+              label: "Mixed challenge",
+              sub: "Brand-new items built from your decks",
+              cards: fresh,
+              due: 0,
+              mixed: true,
+            });
+            setRunId("mixed");
+            handlerReact("recallStart", "nudge");
+          } catch {
+            setBuildError("Couldn't create new items right now. Try again.");
+          } finally {
+            setBuilding(false);
+          }
         }}
         className="mt-5 flex w-full items-center gap-3 rounded-sm border-2 border-secondary bg-secondary/10 px-3 py-3 text-left disabled:opacity-50"
       >
         <Layers className="h-5 w-5 shrink-0 text-secondary" />
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-bold">Mixed challenge · {Math.min(20, total)} items</span>
+          <span className="block text-sm font-bold">{building ? "Writing 20 new items…" : "Mixed challenge · 20 new items"}</span>
           <span className="hud block text-[9px] text-muted-foreground">
-            RANDOM FROM ALL DECKS · EASY ×1 · MEDIUM ×1.5 · HARD ×2 POINTS
+            NEW SENTENCES FROM WORDS YOU KNOW · EASY ×1 · MEDIUM ×1.5 · HARD ×2 POINTS
           </span>
         </span>
         <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
       </button>
+      {buildError && <p className="mt-2 text-xs text-destructive">{buildError}</p>}
 
       <ul className="mt-3 space-y-2">
         {decks.map((d) => (
@@ -285,7 +320,7 @@ function RecallRun({
 
   function grade(correct: boolean) {
     if (!card) return;
-    reviewCard(card.id, correct);
+    if (!deck.mixed) reviewCard(card.id, correct);
     let gained = 0;
     if (correct) {
       const nextCombo = combo + 1;
@@ -413,9 +448,9 @@ function RecallRun({
             <div className="mt-3">
               <PlayButton text={card.target} locale={locale} label="HEAR IT" />
             </div>
-            <span className="hud mt-3 block text-[9px] text-muted-foreground">
+            {!deck.mixed && <span className="hud mt-3 block text-[9px] text-muted-foreground">
               EF {card.ease.toFixed(2)} · {card.reps} REPS · {card.lapses}L
-            </span>
+            </span>}
           </div>
         ) : (
           <p className="mt-4 text-[11px] italic text-muted-foreground">
