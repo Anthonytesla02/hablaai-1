@@ -2,10 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 const CompanionBrief = z.object({
-  personality: z.string().max(900).default(""),
+  personality: z.string().max(2000).default(""),
   characterName: z.string().max(60).default(""),
-  characterBio: z.string().max(300).default(""),
-  dialect: z.string().max(300).default(""),
+  characterBio: z.string().max(800).default(""),
+  dialect: z.string().max(600).default(""),
   slang: z.number().int().min(0).max(3).default(1),
   roast: z.number().int().min(0).max(3).default(1),
   localMode: z.boolean().default(true),
@@ -16,7 +16,7 @@ const CompanionBrief = z.object({
 
 const CoachInput = z.object({
   language: z.string().min(2).max(40),
-  setting: z.string().max(300).default(""),
+  setting: z.string().max(1200).default(""),
   characterLine: z.string().max(600).default(""),
   userText: z.string().max(600),
   options: z.array(z.string().max(200)).max(6).default([]),
