@@ -381,7 +381,9 @@ function RecallRun({
             </div>
           </dl>
           <p className="mt-4 text-sm">
-            Items you recalled cleanly stretched their intervals. Misses come back within a day.
+            {deck.mixed
+              ? "Every item here was brand new — run another mixed challenge for a fresh set."
+              : "Items you recalled cleanly stretched their intervals. Misses come back within a day."}
           </p>
         </div>
         <button
