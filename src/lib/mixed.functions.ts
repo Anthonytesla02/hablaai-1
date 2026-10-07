@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { createParser } from "eventsource-parser";
 
 const Input = z.object({
   language: z.string().min(2).max(40),
@@ -21,22 +22,63 @@ Mix difficulty: 7 EASY (2-4 word phrases), 7 MEDIUM (short sentences), 6 HARD (l
 All 20 must be unique. Reply ONLY with JSON: {"items":[{"target":string,"translation":string,"level":"EASY"|"MEDIUM"|"HARD"}]}
 "target" is ${data.language}, "translation" is natural English.`;
     try {
-      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const res = await fetch("https://ai.gateway.lovable.dev/v1/responses", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey, "X-Lovable-AIG-SDK": "fetch" },
         body: JSON.stringify({
-          model: "google/gemini-3.8-flash",
-          response_format: { type: "json_object" },
-          messages: [
-            { role: "system", content: system },
-            { role: "user", content: `Known items:\n${known}\nReturn the json.` },
-          ],
+          model: "openai/gpt-6-astra",
+          stream: true,
+          store: false,
+          reasoning: { effort: "low" },
+          instructions: system,
+          input: `Known items:\n${known}\nReturn the json.`,
+          text: {
+            format: {
+              type: "json_schema",
+              name: "mixed_deck",
+              strict: true,
+              schema: {
+                type: "object",
+                additionalProperties: false,
+                required: ["items"],
+                properties: {
+                  items: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      additionalProperties: false,
+                      required: ["target", "translation", "level"],
+                      properties: {
+                        target: { type: "string" },
+                        translation: { type: "string" },
+                        level: { type: "string", enum: ["EASY", "MEDIUM", "HARD"] },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
         }),
       });
-      if (!res.ok) return { items: [], error: res.status === 429 ? "busy" : "failed" };
-      const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-      const raw = json.choices?.[0]?.message?.content ?? "";
-      const parsed = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1)) as { items?: MixedItem[] };
+      if (!res.ok || !res.body) return { items: [], error: res.status === 429 ? "busy" : "failed" };
+      let raw = "";
+      const parser = createParser({
+        onEvent(ev) {
+          try {
+            const j = JSON.parse(ev.data) as { type?: string; delta?: string };
+            if (j.type === "response.output_text.delta" && j.delta) raw += j.delta;
+          } catch { /* ignore */ }
+        },
+      });
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        parser.feed(dec.decode(value, { stream: true }));
+      }
+      const parsed = JSON.parse(raw) as { items?: MixedItem[] };
       const knownSet = new Set(data.known.map((k) => k.target.trim().toLowerCase()));
       const seen = new Set<string>();
       const items = (parsed.items ?? []).filter((it) => {
