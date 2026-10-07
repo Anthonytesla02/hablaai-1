@@ -167,36 +167,24 @@ function SessionPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dayKey, mode]);
 
-  // Seamless progression: the debrief never waits for a decision. A pass rolls
-  // straight into the next file; a miss re-runs the same one.
+  // The celebration overlay fades, but the results stay until the learner taps to proceed.
   useEffect(() => {
     if (!finished || !celebrate) return;
-    const t = setTimeout(() => {
-      setCelebrate(false);
-      setHandoff(true);
-      const done = useApp.getState().completedDays;
-      const next = courseFor(useApp.getState().profile?.langId ?? "spanish").lessons.find((l) => !done.includes(courseKey(l.id)));
-      const go = setTimeout(() => {
-        sfx("transition");
-        if (!passed) {
-          resetRun();
-        } else if (!useApp.getState().streakCelebrated) {
-          // First streak of their life — celebrate it before anything else.
-          void navigate({ to: "/streak" });
-        } else if (lesson) {
-          // Straight into today's practice chat — apply what was just learned.
-          void navigate({ to: "/simulate", search: { daily: lesson.id } });
-        } else if (next) {
-          void navigate({ to: "/session", search: { day: courseKey(next.id), mode: "mission" } });
-        } else {
-          void navigate({ to: "/dashboard" });
-        }
-      }, 2600);
-      timers.current.push(go);
-    }, 1900);
+    const t = setTimeout(() => setCelebrate(false), 1900);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [finished, celebrate, passed]);
+  }, [finished, celebrate]);
+
+  function proceed() {
+    timers.current.forEach(clearTimeout);
+    sfx("transition");
+    const done = useApp.getState().completedDays;
+    const next = courseFor(useApp.getState().profile?.langId ?? "spanish").lessons.find((l) => !done.includes(courseKey(l.id)));
+    if (!passed) resetRun();
+    else if (!useApp.getState().streakCelebrated) void navigate({ to: "/streak" });
+    else if (lesson) void navigate({ to: "/simulate", search: { daily: lesson.id } });
+    else if (next) void navigate({ to: "/session", search: { day: courseKey(next.id), mode: "mission" } });
+    else void navigate({ to: "/dashboard" });
+  }
 
 
   if (!profile || (!entry && !lesson)) return null;
@@ -365,16 +353,10 @@ function SessionPage() {
         </div>
 
         <button
-          onClick={() => {
-            timers.current.forEach(clearTimeout);
-            sfx("transition");
-            void navigate(
-              useApp.getState().streakCelebrated ? { to: "/dashboard" } : { to: "/streak" },
-            );
-          }}
+          onClick={proceed}
           className="hud mt-4 rounded-2xl bg-primary py-4 text-center text-xs text-primary-foreground shadow-[0_5px_0_-1px_color-mix(in_oklab,var(--primary)_60%,black)] active:translate-y-[2px] active:shadow-none"
         >
-          CLAIM {xp} XP
+          {passed ? `CLAIM ${xp} XP · NEXT` : "TRY AGAIN"}
         </button>
 
         {celebrate && (
