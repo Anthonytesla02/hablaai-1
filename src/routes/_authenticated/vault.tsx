@@ -46,7 +46,35 @@ type Deck = {
   sub: string;
   cards: SrsCard[];
   due: number;
+  mixed?: boolean;
 };
+
+/** Difficulty tier from a card's history: more lapses / lower ease = harder. */
+function difficulty(c: SrsCard): { label: "EASY" | "MEDIUM" | "HARD"; mult: number } {
+  const score = c.lapses * 1.5 + Math.max(0, 2.5 - c.ease) * 4 - Math.min(3, c.reps) * 0.3;
+  if (score >= 2) return { label: "HARD", mult: 2 };
+  if (score >= 0.6) return { label: "MEDIUM", mult: 1.5 };
+  return { label: "EASY", mult: 1 };
+}
+
+/** 20 random, unique cards spread across easy / medium / hard. */
+function buildMixed(all: SrsCard[]): SrsCard[] {
+  const shuffle = <T,>(a: T[]) => [...a].sort(() => Math.random() - 0.5);
+  const tiers = { HARD: [] as SrsCard[], MEDIUM: [] as SrsCard[], EASY: [] as SrsCard[] };
+  for (const c of shuffle(all)) tiers[difficulty(c).label].push(c);
+  const picked: SrsCard[] = [];
+  const seen = new Set<string>();
+  const take = (list: SrsCard[], n: number) => {
+    for (const c of list) {
+      if (picked.length >= 20 || n <= 0) break;
+      if (seen.has(c.id)) continue;
+      seen.add(c.id); picked.push(c); n--;
+    }
+  };
+  take(tiers.HARD, 6); take(tiers.MEDIUM, 7); take(tiers.EASY, 7);
+  take(shuffle(all), 20);
+  return shuffle(picked);
+}
 
 function VaultPage() {
   const navigate = useNavigate();
@@ -60,6 +88,7 @@ function VaultPage() {
   }, [profile, navigate]);
 
   const [runId, setRunId] = useState<string | null>(null);
+  const [mixed, setMixed] = useState<Deck | null>(null);
 
   const decks: Deck[] = useMemo(() => {
     if (!profile) return [];
@@ -83,7 +112,7 @@ function VaultPage() {
       const deckCards = lesson.vocabulary
         .map((v) => byId.get(`${lesson.id}:${v.id}`))
         .filter((c): c is SrsCard => Boolean(c));
-      if (deckCards.length === 0) continue;
+      if (deckCards.length === 0 || !deckCards.some((c) => c.dueAt <= now)) continue;
       out.push({
         id: courseKey(lesson.id),
         label: lesson.title,
@@ -97,7 +126,7 @@ function VaultPage() {
       const deckCards = entry.day.new_items
         .map((it) => byId.get(it.id))
         .filter((c): c is SrsCard => Boolean(c));
-      if (deckCards.length === 0) continue;
+      if (deckCards.length === 0 || !deckCards.some((c) => c.dueAt <= now)) continue;
       out.push({
         id: entry.key,
         label: entry.day.theme,
@@ -108,15 +137,6 @@ function VaultPage() {
     }
 
 
-    if (mine.length > 0) {
-      out.push({
-        id: "all",
-        label: "FULL DECK",
-        sub: "Every item you've ever filed, shuffled",
-        cards: [...mine].sort(() => Math.random() - 0.5),
-        due: mine.filter((c) => c.dueAt <= now).length,
-      });
-    }
     return out;
   }, [cards, profile]);
 
@@ -127,7 +147,7 @@ function VaultPage() {
 
   if (!profile) return null;
   const locale = bcp47(profile.langId);
-  const active = decks.find((d) => d.id === runId);
+  const active = runId === "mixed" ? mixed : decks.find((d) => d.id === runId);
 
   if (active) {
     return (
@@ -136,6 +156,7 @@ function VaultPage() {
         locale={locale}
         onExit={() => {
           setRunId(null);
+          setMixed(null);
           if (day) void navigate({ to: "/vault", search: { day: "" } });
         }}
       />
@@ -152,7 +173,35 @@ function VaultPage() {
         {total} items filed · {dueTotal} due now · active recall, one item at a time
       </p>
 
-      <ul className="mt-5 space-y-2">
+      <button
+        disabled={total === 0}
+        onClick={() => {
+          const all = Object.values(cards).filter((c) => c.lang === profile.langId);
+          const picked = buildMixed(all);
+          setMixed({
+            id: "mixed",
+            label: "Mixed challenge",
+            sub: "Random mix from every deck",
+            cards: picked,
+            due: 0,
+            mixed: true,
+          });
+          setRunId("mixed");
+          handlerReact("recallStart", "nudge");
+        }}
+        className="mt-5 flex w-full items-center gap-3 rounded-sm border-2 border-secondary bg-secondary/10 px-3 py-3 text-left disabled:opacity-50"
+      >
+        <Layers className="h-5 w-5 shrink-0 text-secondary" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-bold">Mixed challenge · {Math.min(20, total)} items</span>
+          <span className="hud block text-[9px] text-muted-foreground">
+            RANDOM FROM ALL DECKS · EASY ×1 · MEDIUM ×1.5 · HARD ×2 POINTS
+          </span>
+        </span>
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+      </button>
+
+      <ul className="mt-3 space-y-2">
         {decks.map((d) => (
           <li key={d.id}>
             <button
@@ -185,8 +234,9 @@ function VaultPage() {
         ))}
         {decks.length === 0 && (
           <li className="paper-card p-4 text-sm">
-            Nothing filed yet. Complete a mission day and every item you touch lands here as a recall
-            drill.
+            {total === 0
+              ? "Nothing filed yet. Complete a lesson and every item you touch lands here as a recall drill."
+              : "All decks complete — nothing is due right now. Try a mixed challenge, or come back when items are due again."}
           </li>
         )}
       </ul>
@@ -233,6 +283,7 @@ function RecallRun({
     if (correct) {
       const nextCombo = combo + 1;
       gained = 6 + Math.min(6, (nextCombo - 1) * 2);
+      if (deck.mixed) gained = Math.round(gained * difficulty(card).mult);
       setCombo(nextCombo);
       setBest((b) => Math.max(b, nextCombo));
       setHits((h) => h + 1);
@@ -337,7 +388,14 @@ function RecallRun({
       </p>
 
       <div className="paper-card mt-3 p-4">
-        <p className="hud text-[9px] text-destructive">Say it out loud</p>
+        <div className="flex items-center justify-between">
+          <p className="hud text-[9px] text-destructive">Say it out loud</p>
+          {deck.mixed && (
+            <span className="hud rounded-full border border-border px-2 py-0.5 text-[9px] text-muted-foreground">
+              {difficulty(card).label} · ×{difficulty(card).mult}
+            </span>
+          )}
+        </div>
         <p className="mt-2 text-xl leading-snug">{card.translation}</p>
 
         {revealed ? (
