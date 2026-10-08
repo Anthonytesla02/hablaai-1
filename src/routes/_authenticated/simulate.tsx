@@ -517,7 +517,7 @@ function SimulatePage() {
   }
 
 
-  const savage = (config?.roast ?? 1) >= 3;
+  const savage = brief.roast >= 3;
 
   /** The tutor's own voice: their accent for coaching, target voice for the phrase. */
   function coachVoice(text: string) {

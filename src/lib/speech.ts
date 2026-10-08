@@ -7,7 +7,8 @@ export type SpeechMood =
   | "corrective"
   | "celebratory"
   | "empathetic"
-  | "dramatic";
+  | "dramatic"
+  | "savage";
 
 type SpeakingState = { speaking: boolean; text: string; locale: string };
 let speakingState: SpeakingState = { speaking: false, text: "", locale: "" };
