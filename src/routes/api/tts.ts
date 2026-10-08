@@ -7,8 +7,10 @@ const requestSchema = z.object({
   rate: z.number().min(0.7).max(1.25).default(1),
   voice: z.enum(["female", "male"]).default("female"),
   mood: z
-    .enum(["warm", "encouraging", "playful", "corrective", "celebratory", "empathetic", "dramatic"])
+    .enum(["warm", "encouraging", "playful", "corrective", "celebratory", "empathetic", "dramatic", "savage"])
     .default("warm"),
+  /** Target language for English lines that quote target-language words (code-switching). */
+  blendLocale: z.string().trim().min(2).max(24).optional(),
 });
 
 const VOICES = { female: "Kore", male: "Puck" } as const;
@@ -22,6 +24,19 @@ const LANGUAGES: Record<string, string> = {
 };
 
 function deliveryPrompt(input: z.infer<typeof requestSchema>) {
+  if (input.blendLocale) {
+    const target = LANGUAGES[input.blendLocale.toLowerCase().slice(0, 2)] ?? "the target language";
+    const savage = input.mood === "savage";
+    return [
+      "You are a real, funny language tutor talking to your student. Speak the English parts in natural, casual English.",
+      `Whenever a word or phrase is in another language, switch instantly and seamlessly to ${target} with a fully native accent and pronunciation, then glide straight back into English — no pause, no announcer tone, exactly like a bilingual person mid-sentence.`,
+      savage
+        ? "Mood: savage roast. Actually laugh out loud where laughter is written (HAHA, pfff), sound genuinely amused and dramatic, exaggerate the silly comments with big theatrical intonation, then calm down into a friendly, clear explanation."
+        : `Sound ${input.mood}, emotionally present, and genuinely human.`,
+      "Keep words at natural length — never stretch syllables. Never sound synthetic.",
+      `Say: ${input.text}`,
+    ].join(" ");
+  }
   const language = LANGUAGES[input.locale.toLowerCase().slice(0, 2)] ?? "natural English";
   const words = input.text.trim().split(/\s+/).length;
   // Single words and short vocabulary items must be crisp — no drawn-out vowels or dramatic pauses.

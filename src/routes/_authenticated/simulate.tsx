@@ -517,6 +517,8 @@ function SimulatePage() {
   }
 
 
+  const savage = brief.roast >= 3;
+
   /** The tutor's own voice: their accent for coaching, target voice for the phrase. */
   function coachVoice(text: string) {
     if (!text) return;
@@ -542,7 +544,7 @@ function SimulatePage() {
           userText: clean,
           options: suggestions.map((s) => s.target),
           companion: brief,
-          allowRoast: gateRef.current.allowsRoast((verdictSeverityGuess(clean) ?? 2) as Severity),
+          allowRoast: savage || gateRef.current.allowsRoast((verdictSeverityGuess(clean) ?? 2) as Severity),
           runningJoke: joke ?? "",
         },
       });
@@ -572,7 +574,7 @@ function SimulatePage() {
         struggling.current = true;
         setCrimes((n) => n + 1);
         if (verdict.tag) noteMistake(verdict.tag, verdict.why || verdict.fix);
-        const roasted = Boolean(verdict.reaction) && gateRef.current.allowsRoast(severity);
+        const roasted = Boolean(verdict.reaction) && (savage || gateRef.current.allowsRoast(severity));
         gateRef.current.record(roasted);
         const moment =
           characterMoment({
@@ -587,9 +589,13 @@ function SimulatePage() {
         setRetryState("idle");
         setCorrection({ ...verdict, pending: clean, history, roasted, moment });
         handlerReact("wrong", severity >= 3 ? "tough" : "nudge");
-        coachVoice(
-          [moment, verdict.reaction, verdict.why, verdict.fix].filter(Boolean).join(" "),
-        );
+        const line = [moment, verdict.reaction, verdict.why, verdict.fix].filter(Boolean).join(" ");
+        if (savage) {
+          // English roast, target-language words in a native accent — one seamless voice line.
+          void speak(line, "en-US", personality.rate, character?.voiceGender, "savage", locale);
+        } else {
+          coachVoice(line);
+        }
         return;
       }
     } catch {

@@ -83,7 +83,9 @@ ${c.localMode ? "Prefer how people really speak in your region over textbook for
 ${c.memory.length ? `You already know they repeatedly struggle with: ${c.memory.join("; ")}.` : ""}
 ${data.runningJoke ? `Running joke you can call back to, but only once: "${data.runningJoke}".` : ""}
 ${
-  data.allowRoast
+  c.roast >= 3 && data.allowRoast
+    ? `SAVAGE MODE: ROAST THIS MISTAKE HARD. The "reaction" is in ENGLISH, loud and theatrical: start with real laughter written out ("HAHAHA", "pfff—", "ay no no no"), then a silly, over-the-top comment (e.g. "that sentence just tripped down the stairs", "my grandma felt that"). Quote the learner's wrong ${data.language} words inside it so they hear it back. Up to 22 words. Target the sentence, never the person — no slurs, nothing about looks, identity or intelligence. "why" and "fix" stay in English and genuinely helpful.`
+    : data.allowRoast
     ? "You MAY open with one funny, dramatic reaction to the mistake. Target the sentence, never the person. One line only."
     : "Do NOT joke this time. Straight, warm correction only."
 }`
@@ -108,7 +110,7 @@ Grade the mistake on this severity scale:
 Reply with ONLY JSON:
 {"correct":boolean,"severity":0|1|2|3|4,"reaction":string,"why":string,"fix":string,"better":string,"better_translation":string,"retry":string,"tag":string}
 - "correct" = true for severity 0 or 1.
-- "reaction" = ONE short spoken line in your own voice reacting to the mistake, max 12 words. Echo the wrong bit back as a question when it helps ("Yesterday I go?"). Empty if correct.
+- "reaction" = ONE short spoken line in your own voice reacting to the mistake, max 12 words (22 in savage mode). Echo the wrong bit back as a question when it helps ("Yesterday I go?"). Empty if correct.
 - "why" = ONE short English sentence on what is wrong. Empty if correct.
 - "fix" = ONE short English sentence on how to fix it. Empty if correct.
 - "better" = the correct line, in ${data.language} only. Empty if correct.
