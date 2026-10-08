@@ -86,6 +86,7 @@ export async function speak(
   rate = 1,
   preferredGender: "male" | "female" = "female",
   mood: SpeechMood = inferMood(text),
+  blendLocale?: string,
 ): Promise<void> {
   if (!text.trim() || !ttsSupported()) return;
 
@@ -108,7 +109,7 @@ export async function speak(
     const response = await fetch("/api/tts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, locale, rate, voice: preferredGender, mood }),
+      body: JSON.stringify({ text, locale, rate, voice: preferredGender, mood, ...(blendLocale ? { blendLocale } : {}) }),
       signal: controller.signal,
     });
     if (!response.ok || !response.body) {
