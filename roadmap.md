@@ -20,3 +20,5 @@
 - [x] Feed social/search wording covers all four languages
 - [x] Secure admin feedback inbox
 - [x] Practice deck: completed decks leave the list; 20-item mixed challenge
+- [ ] Revise HABLAA Structure.md — high-level AI sections (v2)
+- [ ] Migration off Lovable per MASTER_BUILD_PROMPT upload — needs user accounts/keys (see chat questions)
