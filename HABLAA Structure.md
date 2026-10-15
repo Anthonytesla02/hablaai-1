@@ -65,7 +65,7 @@ src/
       dashboard.tsx session.tsx simulate.tsx vault.tsx league.tsx shop.tsx
       profile.tsx companion.tsx streak.tsx backup.tsx
     api/
-      tts.ts               POST /api/tts — streamed expressive speech (PCM over SSE)
+      tts.ts               POST /api/tts — streamed expressive speech
       public/push/daily-reminder.ts  Cron endpoint for push reminders (secret-authenticated)
   lib/
     store.ts               Zustand global state + all game logic actions
@@ -103,17 +103,16 @@ roadmap.md                 Task list
 ```text
 Browser (React + Zustand persisted to localStorage)
   |-- supabase client --> Lovable Cloud (Auth, Postgres w/ RLS, Realtime)
-  |-- createServerFn  --> Worker handler --> Lovable AI Gateway (chat / transcribe)
-  |-- fetch /api/tts  --> Worker route   --> Gateway TTS (SSE PCM stream) --> AudioContext
+  |-- createServerFn  --> Worker handler --> AI provider (chat / transcription)
+  |-- fetch /api/tts  --> Worker route   --> AI speech provider (streamed) --> AudioContext
   |-- OneSignal SDK   --> OneSignal  <-- /api/public/push/daily-reminder (cron)
 ```
 
 ### Auth gate (`src/routes/_authenticated/route.tsx`)
-1. `supabase.auth.getSession()`; no session → redirect `/auth`.
+1. Check for a session; none → redirect `/auth`.
 2. `syncFromCloud(userId)` hydrates the store (failure doesn't block the app).
-3. `useApp.subscribe(() => scheduleCloudSave(userId))` — debounced autosave.
-4. `flushCloudSave()` on `pagehide` / `visibilitychange`.
-5. Sign-out event → `/auth`. Shows a llama loading image until ready.
+3. Store changes trigger a debounced autosave; a flush runs on `pagehide` / `visibilitychange`.
+4. Sign-out event → `/auth`. Shows a llama loading image until ready.
 
 Do not recreate this file from scratch; edit carefully.
 
@@ -197,65 +196,49 @@ acceptedAnswers(a) / matchPairs(a) / orderTokens(a) / activityAudio(a)
 
 ## 8. Voice system (most sensitive area)
 
-**Rule: one playback source only.** All tutor speech goes through `speak()` in `src/lib/speech.ts` → `/api/tts`. Browser `speechSynthesis` was deliberately removed (echo, robotic quality) — never re-add it.
+**Rule: one playback source only.** All tutor speech goes through the single speech service — a client player (`src/lib/speech.ts`) talking to one server route (`/api/tts`). Browser `speechSynthesis` was deliberately removed (echo, robotic quality) — never re-add it, and never add a second audio path.
 
-### Playback (`src/lib/speech.ts`)
-```ts
-speak(text, locale, rate = 1, gender = "female", mood = inferMood(text), blendLocale?)
-stopSpeaking()      // aborts fetch, stops sources, bumps generation counter
-subscribeSpeaking() // UI state (speaking/text)
-```
-- Streams Server-Sent Events, parses with `eventsource-parser`, decodes 16-bit PCM at 24 kHz, schedules `AudioBufferSourceNode`s on one `AudioContext`.
-- Every new `speak()` cancels the previous one (no overlap).
+### How playback works (high level)
+1. Any part of the app asks the speech service to say a line, passing the text, language, speed, voice gender, and an optional "mood" (warm, encouraging, playful, corrective, celebratory, empathetic, dramatic, savage).
+2. The client sends the request to `/api/tts` and plays the streamed response on a single shared audio context.
+3. Starting a new line always cancels the previous one — speech can never overlap.
+4. The server route validates the request, picks the voice, and builds an "acting direction" for the speech model:
+   - **Short vocabulary items** (a few words): crisp, native, normal speed, no stretched syllables.
+   - **Full sentences:** expressive, emotional, conversational pace based on speed and mood.
+   - **Code-switching lines** (English narration quoting target-language words): instant native-accent switch mid-sentence, like a bilingual person.
+   - **Savage mood:** real laughter and theatrical roasting that settles into a clear explanation.
+5. The route forwards the provider's audio stream straight to the browser.
 
-### TTS route (`src/routes/api/tts.ts`)
-Zod schema: `text ≤1800, locale, rate 0.7–1.25, voice female|male, mood, blendLocale?`. Voices: female **Kore**, male **Puck**. Model: Gemini TTS via the gateway.
-
-`deliveryPrompt()` builds the acting direction:
-- **≤4 words** (vocabulary): crisp, native, normal speed, no stretched syllables.
-- **Sentences:** expressive, emotional, human pace based on `rate` and `mood`.
-- **blendLocale** (code-switching): English narration with instant native-accent switch for target-language words; mood `savage` adds real laughter and theatrical roasting.
-
-Moods: warm, encouraging, playful, corrective, celebratory, empathetic, dramatic, savage.
-
-### Recording (`src/lib/voice/`)
-- `recorder.ts` `listen()` — MediaRecorder, max 15 s, level meter, friendly mic errors.
-- `use-voice-answer.ts` — phases idle → listening → checking → result/error. **Always calls `stopSpeaking()` and waits ~140 ms before opening the mic** so speakers don't leak into transcription.
-- `transcribe.functions.ts` `transcribeSpeech` — server transcription via the gateway.
-- `score.ts` `scoreSpeech(transcript, expected)` — word-level hit/near/off/missed with phonetic folding → verdict great/close/retry → `voiceXp()`.
+### How recording works (high level)
+1. The learner taps to speak. **All tutor speech is stopped first, with a short settle delay,** so the microphone never captures speaker output (this prevents echo and garbage transcripts).
+2. A short clip (max ~15 s, with a live level meter and friendly mic errors) is recorded in the browser.
+3. The clip goes to a server function that forwards it to the speech-to-text provider and returns a transcript.
+4. Local scoring (`src/lib/voice/score.ts`) compares the transcript to the expected answer word by word (with phonetic folding for near-misses) and returns a verdict (great / close / retry) plus the XP to award.
 
 ---
 
-## 9. AI server functions
+## 9. AI service layer (high level)
 
-All are `createServerFn({ method: "POST" }).inputValidator(zod).handler(...)`, read `process.env.LOVABLE_API_KEY` inside the handler, and return a safe fallback on failure.
+All AI features run as **server functions** (or the `/api/tts` route). The browser never holds an AI key and never talks to a provider directly. Every server function follows the same contract:
 
-| Function | File | Model | Role |
-|---|---|---|---|
-| `simulateTurn` | `simulate.functions.ts` | google/gemini-3.8-flash | Tutor's next in-character reply + feedback (JSON) |
-| `checkUtterance` | `coach.functions.ts` | google/gemini-3.8-flash | Judges learner line; exact match skips the model; savage roast text |
-| `explainWord` | `gloss.functions.ts` | google/gemini-3.8-flash | Tap-a-word explanation |
-| `translateUtterance` | `translate.functions.ts` | gateway | Translation helper |
-| `generateMixedDeck` | `mixed.functions.ts` | openai/gpt-6-astra | 20 brand-new items built from known words (strict JSON schema) |
-| `transcribeSpeech` | `voice/transcribe.functions.ts` | gateway | Speech-to-text |
-| `getPushConfig` / `sendTestPush` | `push.functions.ts` | — | OneSignal app id / test push |
+1. Validate input with Zod (limits sized for real lesson content).
+2. Read the AI key from server-only environment inside the handler.
+3. Call the provider; on any failure return a **safe, pre-written fallback** so the app keeps working.
+4. Where an exact deterministic answer exists (e.g. the learner typed the expected answer word-for-word), skip the model entirely.
 
-Pattern:
-```ts
-export const explainWord = createServerFn({ method: "POST" })
-  .inputValidator((d) => Input.parse(d))
-  .handler(async ({ data }) => {
-    const apiKey = process.env["LOVABLE_API_KEY"];
-    if (!apiKey) return FALLBACK;
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "google/gemini-3.8-flash", messages: [...] }),
-    });
-    ...
-  });
-```
-Billing note: AI features are paid from the workspace's general AI credits; when exhausted, the gateway returns 402 and the tutor shows "Connection unstable" / "Speech checking is unavailable".
+The AI-powered capabilities:
+
+| Capability | File | What it does |
+|---|---|---|
+| Conversation tutor | `simulate.functions.ts` | Produces the tutor's next in-character reply plus structured feedback, given the scene, character, personality dials and recent history |
+| Correction & coaching | `coach.functions.ts` | Judges a learner's line (exact matches skip the model); explains mistakes at beginner level; writes the roast text on the Savage setting |
+| Word explanations | `gloss.functions.ts` | Tap-a-word meaning, grammar note and example in context |
+| Translation | `translate.functions.ts` | Cleans up and translates what the learner just said |
+| Mixed challenges | `mixed.functions.ts` | Generates 20 brand-new practice items from the learner's known vocabulary (validated, de-duplicated) |
+| Speech-to-text | `voice/transcribe.functions.ts` | Turns the recorded clip into a transcript |
+| Text-to-speech | `routes/api/tts.ts` | Streams the tutor's voice (see §8) |
+
+Billing note: AI features are paid from the workspace's AI credits. When credits are exhausted the provider refuses requests and the app shows its fallback states ("Connection unstable", "Speech checking is unavailable").
 
 ---
 
@@ -263,9 +246,9 @@ Billing note: AI features are paid from the workspace's general AI credits; when
 
 - Scene built from today's lesson (goals, vocab, setting) + chosen character from `companions.ts` (Sofia/Lucía es, Camille/Élise fr, Lena de, Anya ru).
 - Companion brief: personality contract, slang dial 0–3, roast dial 0–3, local mode, don't-translate mode, interject-only, mistake memory.
-- Learner speaks (tap and speak) or types → `checkUtterance` → `simulateTurn` → tutor line spoken via `speak()`.
+- Learner speaks (tap and speak) or types → correction check → tutor reply → reply spoken through the speech service.
 - Indicator: `CHECKING YOUR {LANGUAGE}…` (dynamic).
-- **Savage (roast ≥ 3):** every real mistake gets a laugh + silly English roast quoting the wrong words, then the correction; spoken as one line with `speak(line, "en-US", rate, gender, "savage", targetLocale)`. Mocks the sentence, never the person.
+- **Savage (roast ≥ 3):** every real mistake gets a laugh plus a silly English roast quoting the wrong words, then the correction — spoken as one code-switched line (English narration, native-accent target language). It mocks the sentence, never the person.
 
 ---
 
@@ -273,7 +256,7 @@ Billing note: AI features are paid from the workspace's general AI credits; when
 
 - Cards scheduled with modified SM-2 (`scheduleGraded(card, "correct"|"hinted"|"wrong")`).
 - A deck with nothing due disappears from the list until items come due again.
-- **Mixed challenge:** sends known words to `generateMixedDeck` → 20 new unique items (EASY/MEDIUM/HARD with 1×/1.5×/2× points). Mixed cards are temporary (not graded into SRS). Deck is snapshotted when a run starts.
+- **Mixed challenge:** sends known words to the mixed-deck generator → 20 new unique items (EASY/MEDIUM/HARD with 1×/1.5×/2× points). Mixed cards are temporary (not graded into SRS). Deck is snapshotted when a run starts.
 - Language resolved by `mixed-lang.ts` `langName()` (short codes or full names).
 
 ---
@@ -309,7 +292,7 @@ Billing note: AI features are paid from the workspace's general AI credits; when
 
 | Secret | Use |
 |---|---|
-| `LOVABLE_API_KEY` | AI Gateway (managed, server-only) |
+| `LOVABLE_API_KEY` | AI access (managed, server-only) |
 | OneSignal REST key / App ID | Push |
 | Cron secret | Protects daily-reminder endpoint |
 | `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` | Public client config (auto-managed `.env`) |
@@ -320,7 +303,7 @@ Never read `process.env` outside a handler; never ship secrets to the browser.
 
 ## 16. Rules / gotchas for contributors
 
-1. Only one tutor audio source (`speak()`); no browser speech; no parallel players.
+1. Only one tutor audio source (the speech service); no browser speech; no parallel players.
 2. Stop speech + settle before recording.
 3. Roles only in `user_roles` + `has_role()` in RLS.
 4. Don't edit auto-generated files: `src/integrations/supabase/*` (client, types, middleware), `src/routeTree.gen.ts`, `.env`, `supabase/config.toml`.
