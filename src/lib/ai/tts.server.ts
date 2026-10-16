@@ -93,43 +93,48 @@ async function callLovableGateway(apiKey: string, opts: TtsOpts): Promise<TtsUps
  */
 function transformGeminiSse(): TransformStream<Uint8Array, Uint8Array> {
   const encoder = new TextEncoder();
-  const emit = (controller: TransformStreamDefaultController<Uint8Array>, payload: unknown) =>
-    controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
-
+  const decoder = new TextDecoder();
+  let controllerRef: TransformStreamDefaultController<Uint8Array> | null = null;
+  let doneEmitted = false;
+  const emit = (payload: unknown) => {
+    controllerRef?.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+  };
+  const emitDone = () => {
+    if (doneEmitted) return;
+    doneEmitted = true;
+    emit({ type: "speech.audio.done" });
+  };
+  const parser = createParser({
+    onEvent(event) {
+      if (!event.data || event.data === "[DONE]") return;
+      try {
+        const chunk = JSON.parse(event.data) as {
+          candidates?: { content?: { parts?: { inlineData?: { data?: string } }[] }; finishReason?: string }[];
+          error?: unknown;
+        };
+        if (chunk.error) {
+          emit({ type: "error" });
+          return;
+        }
+        for (const part of chunk.candidates?.[0]?.content?.parts ?? []) {
+          if (part.inlineData?.data) emit({ type: "speech.audio.delta", audio: part.inlineData.data });
+        }
+        if (chunk.candidates?.[0]?.finishReason) emitDone();
+      } catch {
+        /* ignore partial events */
+      }
+    },
+  });
   return new TransformStream({
     start(controller) {
-      const parser = createParser({
-        onEvent(event) {
-          if (!event.data || event.data === "[DONE]") return;
-          try {
-            const chunk = JSON.parse(event.data) as {
-              candidates?: { content?: { parts?: { inlineData?: { data?: string } }[] }; finishReason?: string }[];
-              error?: unknown;
-            };
-            if (chunk.error) {
-              emit(controller, { type: "error" });
-              return;
-            }
-            for (const part of chunk.candidates?.[0]?.content?.parts ?? []) {
-              if (part.inlineData?.data) emit(controller, { type: "speech.audio.delta", audio: part.inlineData.data });
-            }
-            if (chunk.candidates?.[0]?.finishReason) emit(controller, { type: "speech.audio.done" });
-          } catch {
-            /* ignore partial events */
-          }
-        },
-      });
-      const decoder = new TextDecoder();
-      (this as { feed?: (v: Uint8Array, done: boolean) => void }).feed = (value, done) =>
-        parser.feed(decoder.decode(value, { stream: !done }));
-      (this as { flushParser?: () => void }).flushParser = () => parser.reset({ consume: true });
+      controllerRef = controller;
     },
     transform(chunk) {
-      (this as unknown as { feed: (v: Uint8Array, done: boolean) => void }).feed(chunk, false);
+      parser.feed(decoder.decode(chunk, { stream: true }));
     },
-    flush(controller) {
-      (this as unknown as { flushParser: () => void }).flushParser();
-      emit(controller, { type: "speech.audio.done" });
+    flush() {
+      parser.reset({ consume: true });
+      emitDone();
     },
   });
 }
