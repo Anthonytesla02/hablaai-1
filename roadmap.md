@@ -22,3 +22,5 @@
 - [x] Practice deck: completed decks leave the list; 20-item mixed challenge
 - [ ] Revise HABLAA Structure.md — high-level AI sections (v2)
 - [ ] Migration off Lovable per MASTER_BUILD_PROMPT upload — needs user accounts/keys (see chat questions)
+- [ ] Provider-independent AI layer (src/lib/ai): Mistral text, Gemini TTS, Groq STT, Lovable fallback, central config
+- [ ] Wire existing AI functions through the layer
